@@ -64,58 +64,28 @@ keda-trigger-sa-thanos-metrics-reader   Role/thanos-metrics-reader   10s
 '''
 
 [#triggerauth]
-=== 2. Create the bearer token secret and TriggerAuthentication
+=== 2. Grant keda-operator token permissions and create the TriggerAuthentication
 
-*What:* Generate a token for the ServiceAccount, store it in a Secret, and create a `TriggerAuthentication` that tells KEDA where to find it.
+*What:* Grant the `keda-operator` ServiceAccount permission to request bound tokens for `keda-trigger-sa`, then create the `TriggerAuthentication` that uses `boundServiceAccountToken`.
 
-*Why:* KEDA reads credentials from a Secret via `TriggerAuthentication` rather than accessing the ServiceAccount token directly. This decouples the credential lifecycle from the scaler configuration.
-
-Generate the token and export it:
+*Why:* With `boundServiceAccountToken`, KEDA requests a fresh, short-lived projected token directly from the Kubernetes TokenRequest API on each metric poll. No manually generated token or Secret is needed. The keda-operator SA needs `create` on `serviceaccounts/token` in this namespace to make that API call.
 
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
-export THANOS_TOKEN=$(oc create token keda-trigger-sa \
-  --duration=87600h \
-  -n {namespace} \
-  --context {crc-context})
-echo "Token generated (first 40 chars): ${THANOS_TOKEN:0:40}..."
-----
-
-NOTE: `--duration=87600h` sets the token lifetime to approximately 10 years so it does not expire mid-workshop. In production, use a shorter duration and rotate the secret on a schedule.
-
-Apply the secret using `envsubst` to substitute the token value:
-
-[.console-input]
-[source,bash,subs="+macros,+attributes"]
-----
-envsubst < 03-prometheus-trigger/triggerauth-secret.yaml | \
-  oc apply --context {crc-context} -f -
-----
-
-[.console-output]
-[source,bash]
-----
-secret/keda-trigger-auth-prometheus-secret created
-----
-
-NOTE: `envsubst` substitutes `${THANOS_TOKEN}` in the YAML template before passing it to `oc apply`. Running `oc apply -f 03-prometheus-trigger/triggerauth-secret.yaml` directly would store the literal string `${THANOS_TOKEN}` in the Secret, not the token value.
-
-Create the `TriggerAuthentication`:
-
-[.console-input]
-[source,bash,subs="+macros,+attributes"]
-----
+oc apply -f 03-prometheus-trigger/keda-token-role.yaml --context {crc-context}
 oc apply -f 03-prometheus-trigger/triggerauth.yaml --context {crc-context}
 ----
 
 [.console-output]
 [source,bash]
 ----
+role.rbac.authorization.k8s.io/keda-operator-token-creator created
+rolebinding.rbac.authorization.k8s.io/keda-operator-token-creator created
 triggerauthentication.keda.sh/keda-trigger-auth-prometheus created
 ----
 
-.Verify: TriggerAuthentication references the secret
+.Verify: TriggerAuthentication uses a bound token (no Secret reference)
 [%collapsible]
 ====
 [.console-input]
@@ -133,10 +103,11 @@ metadata:
   name: keda-trigger-auth-prometheus
   namespace: cma-demo
 spec:
-  secretTargetRef:
-    - key: bearerToken
-      name: keda-trigger-auth-prometheus-secret
+  boundServiceAccountToken:
+    - audiences:
+        - https://kubernetes.default.svc
       parameter: bearerToken
+      serviceAccountName: keda-trigger-sa
 ----
 ====
 
@@ -152,13 +123,17 @@ spec:
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
+CHECK_TOKEN=$(oc create token keda-trigger-sa \
+  -n {namespace} --context {crc-context})
 oc run metric-check --rm -i --restart=Never \
   --image=registry.access.redhat.com/ubi9/ubi-minimal:latest \
   -n {namespace} --context {crc-context} \
   -- curl -sk \
-  -H "Authorization: Bearer $THANOS_TOKEN" \
+  -H "Authorization: Bearer $CHECK_TOKEN" \
   'https://thanos-querier.openshift-monitoring.svc.cluster.local:9091/api/v1/query?query=sum(rate(container_cpu_usage_seconds_total%7Bnamespace%3D%22cma-demo%22%2Ccontainer%3D%22myboot%22%7D%5B2m%5D))*1000'
 ----
+
+NOTE: `CHECK_TOKEN` is a short-lived token generated only to run this verification curl. KEDA itself requests fresh tokens automatically via `boundServiceAccountToken` and never needs this variable.
 
 .Verify: thanos-querier returns a numeric result
 [%collapsible]
@@ -296,7 +271,7 @@ image::03-triggerauth-list.png[OpenShift console TriggerAuthentications list sho
 |===
 | Approach | Notes
 | Deploy a standalone Prometheus instance | Works but requires managing a separate installation. Querying thanos-querier reuses the monitoring stack CRC already runs.
-| Use `TriggerAuthentication.spec.boundServiceAccountToken` | KEDA 2.x defines this field, but the Prometheus scaler's `bearer` auth mode does not consume it - tested on CMA 2.19.0-4 / OCP 4.21. The `secretTargetRef` + `oc create token` path remains the supported approach.
+| Use `secretTargetRef` with a manually generated token | A ServiceAccount token generated with `oc create token --duration=8h` can be stored in a Secret and referenced via `TriggerAuthentication.spec.secretTargetRef`. This works on all CMA versions but requires regenerating the token before each session. `boundServiceAccountToken` is preferred because KEDA rotates the token automatically. Note: `boundServiceAccountToken` requires a `keda-operator-token-creator` Role in the target namespace granting `create` on `serviceaccounts/token` to the `keda-operator` SA in `openshift-keda`; without it, the bearer token remains empty.
 | Use a ClusterRoleBinding with `cluster-monitoring-view` | Works (original approach), but grants the SA cluster-wide monitoring-view access. The `thanos-metrics-reader` RoleBinding in `openshift-monitoring` is narrower.
 | Use `rate(...[1m])` for faster scale-up detection | CRC scrapes cAdvisor every 60 seconds. Prometheus `rate()` requires at least two data points inside the window; a `[1m]` window captures only one point and returns empty. KEDA treats an empty result as 0, so scale-up never fires. Use `[2m]` as the minimum window on CRC.
 | Use `unsafeSsl: "false"` with a mounted CA cert | Mounting the CA cert is the production-safe approach. The workshop uses `unsafeSsl: "true"` to keep the setup shorter. See the link:https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/nodes/automatically-scaling-pods-with-the-custom-metrics-autoscaler-operator[CMA documentation] for the full CA cert setup.
@@ -313,7 +288,8 @@ Delete resources in reverse order. The `TriggerAuthentication` must be deleted b
 ----
 oc delete scaledobject myboot-prometheus-scaler -n {namespace} --ignore-not-found --context {crc-context}
 oc delete triggerauthentication keda-trigger-auth-prometheus -n {namespace} --ignore-not-found --context {crc-context}
-oc delete secret keda-trigger-auth-prometheus-secret -n {namespace} --ignore-not-found --context {crc-context}
+oc delete rolebinding keda-operator-token-creator -n {namespace} --ignore-not-found --context {crc-context}
+oc delete role keda-operator-token-creator -n {namespace} --ignore-not-found --context {crc-context}
 oc delete rolebinding keda-trigger-sa-thanos-metrics-reader -n openshift-monitoring --ignore-not-found --context {crc-context}
 oc delete role thanos-metrics-reader -n openshift-monitoring --ignore-not-found --context {crc-context}
 oc delete serviceaccount keda-trigger-sa -n {namespace} --ignore-not-found --context {crc-context}

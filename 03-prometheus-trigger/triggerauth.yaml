@@ -1,6 +1,8 @@
 # triggerauth.yaml
-# Purpose: TriggerAuthentication that tells KEDA where to find the bearer token
-# for the thanos-querier Prometheus endpoint.
+# Purpose: TriggerAuthentication that tells KEDA to request a bound ServiceAccount
+# token for keda-trigger-sa and pass it as the bearerToken to thanos-querier.
+# Requires keda-token-role.yaml to grant keda-operator the create/serviceaccounts/token
+# permission in this namespace.
 apiVersion: keda.sh/v1alpha1
 kind: TriggerAuthentication
 metadata:
@@ -9,7 +11,8 @@ metadata:
   labels:
     app.kubernetes.io/part-of: cma-demo
 spec:
-  secretTargetRef:
+  boundServiceAccountToken:
     - parameter: bearerToken
-      name: keda-trigger-auth-prometheus-secret
-      key: bearerToken
+      serviceAccountName: keda-trigger-sa
+      audiences:
+        - https://kubernetes.default.svc

@@ -1,0 +1,31 @@
+# keda-token-role.yaml
+# Purpose: Grants the keda-operator SA in openshift-keda permission to request
+# a bound ServiceAccount token for keda-trigger-sa in cma-demo.
+# Required for TriggerAuthentication.spec.boundServiceAccountToken to work.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: keda-operator-token-creator
+  namespace: cma-demo
+  labels:
+    app.kubernetes.io/part-of: cma-demo
+rules:
+  - apiGroups: [""]
+    resources: ["serviceaccounts/token"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: keda-operator-token-creator
+  namespace: cma-demo
+  labels:
+    app.kubernetes.io/part-of: cma-demo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: keda-operator-token-creator
+subjects:
+  - kind: ServiceAccount
+    name: keda-operator
+    namespace: openshift-keda

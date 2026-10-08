@@ -116,7 +116,7 @@ keda-hpa-myboot-cpu-scaler  Deployment/myboot  2%/50%    1         5         1  
 [#generate-load]
 === 3. Generate CPU load and observe scaling
 
-icon:clock[] ~3 minutes total (Job runs 120 s; scale-up fires in ~90 s; scale-down takes ~60 s after load stops)
+icon:clock[] ~3.5 minutes total (Job runs 120 s; scale-up fires in ~90 s; scale-down takes ~90 s after load stops)
 
 *What:* Run the load-generating Job, which sends a continuous stream of HTTP requests to `{app-name}` from inside the cluster.
 

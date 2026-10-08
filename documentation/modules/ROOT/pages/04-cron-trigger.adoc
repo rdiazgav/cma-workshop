@@ -247,7 +247,7 @@ image::04-scaledobject-cron-detail.png[OpenShift console ScaledObject detail for
 
 == Reset
 
-Delete the combined ScaledObject. Resources from step 03 (TriggerAuthentication, Secret, RoleBinding, Role, ServiceAccount) remain in place after this reset.
+Delete the combined ScaledObject. Resources from step 03 (TriggerAuthentication, Role, RoleBinding, ServiceAccount) remain in place after this reset.
 
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
@@ -264,6 +264,8 @@ To tear down the full workshop, run the reset commands from each step in reverse
 [source,bash,subs="+macros,+attributes"]
 ----
 oc delete namespace {namespace} --context {crc-context}
+oc delete rolebinding keda-operator-token-creator -n {namespace} --ignore-not-found --context {crc-context}
+oc delete role keda-operator-token-creator -n {namespace} --ignore-not-found --context {crc-context}
 oc delete rolebinding keda-trigger-sa-thanos-metrics-reader -n openshift-monitoring --ignore-not-found --context {crc-context}
 oc delete role thanos-metrics-reader -n openshift-monitoring --ignore-not-found --context {crc-context}
 ----
