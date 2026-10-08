@@ -46,6 +46,8 @@ INFO You can now run 'crc console' and use these credentials to access the OpenS
 
 NOTE: The kubeadmin password is printed in the `crc start` output. Copy it into your `myenv.sh` file before proceeding.
 
+NOTE: These steps were validated on CRC with 14336 MB RAM and 6 CPUs (`crc config set memory 14336 && crc config set cpus 6`). If the CRC API server becomes unresponsive (TLS handshake timeout errors), wait 60 seconds and retry. Run `crc status` to confirm the VM is still Running. If the VM has stopped, run `crc start` again. The CRC API can time out briefly when the VM is under memory pressure or after a period of idle.
+
 .Verify: CRC is running
 [%collapsible]
 ====
@@ -330,9 +332,9 @@ cd cma-workshop
 [#export-variables]
 == 7. Export workshop variables
 
-*What:* Source `myenv.sh` to load the variables used by `envsubst` when applying YAML templates.
+*What:* Source `myenv.sh` to set the environment variables used throughout the workshop.
 
-*Why:* One YAML file in this workshop contains a `${VARIABLE}` placeholder (`03-prometheus-trigger/triggerauth-secret.yaml`). Running `envsubst` against it substitutes the actual value before `oc apply`.
+*Why:* The `myenv.sh` file holds the cluster credentials and context name. Sourcing it once ensures every `oc` command in subsequent steps uses the `{crc-context}` context without requiring a login prompt.
 
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
@@ -346,5 +348,4 @@ source myenv.sh
 | `CRC_API_URL` | `myenv.sh` login | API endpoint for the CRC cluster
 | `CRC_PASSWORD` | `myenv.sh` login | kubeadmin password from `crc start` output
 | `NAMESPACE` | reference in commands | Target namespace (`cma-demo`)
-| `THANOS_TOKEN` | `03-prometheus-trigger/triggerauth-secret.yaml` | Bearer token for thanos-querier (set in step 03)
 |===

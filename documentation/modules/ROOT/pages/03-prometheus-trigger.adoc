@@ -111,6 +111,8 @@ spec:
 ----
 ====
 
+IMPORTANT: `boundServiceAccountToken` requires the `keda-operator` ServiceAccount in `{cma-operator-ns}` to have `create` permission on `serviceaccounts/token` in the target namespace. Without it, KEDA logs `bearer token=<empty> is required when bearer auth is enabled` on every metric poll and no scaling occurs. The `keda-token-role.yaml` file applied above grants this permission.
+
 '''
 
 [#verify-metric]
@@ -199,7 +201,7 @@ oc describe scaledobject myboot-prometheus-scaler -n {namespace} --context {crc-
 
 === 5. Generate CPU load and observe scaling
 
-icon:clock[] ~6 minutes total (load runs 120 s; metric crosses threshold ~80 s in; pods ready ~140 s in; scale-down completes ~180 s after load stops as the 2-minute rate window drains and the 60-second stabilization window elapses)
+icon:clock[] ~5 minutes total (Job runs 120 s; metric crosses threshold ~82 s in; pods ready ~144 s; scale-down completes ~144 s after load stops as the 2-minute rate window drains and the 60-second stabilization window elapses)
 
 *What:* Run the load-generating Job to push total CPU usage above the 50-millicore threshold.
 
