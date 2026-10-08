@@ -159,4 +159,6 @@ Delete the baseline resources in reverse creation order. The `--ignore-not-found
 oc delete route {app-name} -n {namespace} --ignore-not-found --context {crc-context}
 oc delete service {app-name} -n {namespace} --ignore-not-found --context {crc-context}
 oc delete deployment {app-name} -n {namespace} --ignore-not-found --context {crc-context}
+oc wait --for=delete pod -l app={app-name} -n {namespace} \
+  --timeout=120s --context {crc-context}
 ----

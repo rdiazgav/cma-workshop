@@ -1,0 +1,15 @@
+# role.yaml
+# Purpose: Namespaced Role in openshift-monitoring that grants permission to query
+# the platform Prometheus API via thanos-querier. Scoped to the k8s Prometheus instance.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: thanos-metrics-reader
+  namespace: openshift-monitoring
+  labels:
+    app.kubernetes.io/part-of: cma-demo
+rules:
+  - apiGroups: ["monitoring.coreos.com"]
+    resourceNames: ["k8s"]
+    resources: ["prometheuses/api"]
+    verbs: ["get", "create", "update"]

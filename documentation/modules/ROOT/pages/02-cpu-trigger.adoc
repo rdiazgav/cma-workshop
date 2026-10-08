@@ -15,7 +15,9 @@ The `ScaledObject` resource links KEDA to a Deployment and defines when to scale
 
 The `cooldownPeriod` (30 seconds here) is the minimum time KEDA waits after the last scale event before scaling back down. This prevents rapid replica oscillation when load is uneven.
 
-NOTE: The Kubernetes HPA adds a default 5-minute scale-down stabilization window on top of the KEDA cooldown. After the load Job finishes, expect the replica count to return to the minimum about 5 minutes later, not 30 seconds.
+The `stabilizationWindowSeconds: 60` under `spec.advanced.horizontalPodAutoscalerConfig.behavior.scaleDown` overrides the HPA default and tells the HPA to consider only the last 60 seconds of replica-count samples when deciding whether to scale down.
+
+NOTE: The default HPA scale-down stabilization window is 300 seconds (5 minutes). This workshop sets it to 60 seconds so participants can observe scale-down within a reasonable session window. Production workloads should keep the default 300-second window, or tune it to match the expected traffic pattern.
 
 [#create-scaledobject]
 == Steps to Apply
@@ -114,7 +116,7 @@ keda-hpa-myboot-cpu-scaler  Deployment/myboot  2%/50%    1         5         1  
 [#generate-load]
 === 3. Generate CPU load and observe scaling
 
-icon:clock[] ~7 minutes total (Job runs 120 s; scale-up fires in ~30-45 s; scale-down takes ~5 min after load stops)
+icon:clock[] ~3 minutes total (Job runs 120 s; scale-up fires in ~90 s; scale-down takes ~60 s after load stops)
 
 *What:* Run the load-generating Job, which sends a continuous stream of HTTP requests to `{app-name}` from inside the cluster.
 
@@ -203,4 +205,6 @@ The KEDA-managed HPA is deleted automatically when the ScaledObject is deleted. 
 oc delete scaledobject myboot-cpu-scaler -n {namespace} --ignore-not-found --context {crc-context}
 oc delete job myboot-load -n {namespace} --ignore-not-found --context {crc-context}
 oc scale deployment {app-name} --replicas=2 -n {namespace} --context {crc-context}
+oc wait --for=condition=available deployment/{app-name} -n {namespace} \
+  --timeout=120s --context {crc-context}
 ----

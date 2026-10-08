@@ -1,6 +1,6 @@
 # scaledobject.yaml
-# Purpose: ScaledObject that scales myboot based on HTTP request rate as reported
-# by thanos-querier. Scales up when the per-replica request rate exceeds 5 rps.
+# Purpose: ScaledObject that scales myboot based on CPU millicores as reported
+# by thanos-querier. Scales up when total CPU across all myboot pods exceeds 50 millicores.
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
@@ -13,6 +13,11 @@ spec:
   maxReplicaCount: 5
   cooldownPeriod: 60
   pollingInterval: 30
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 60
   triggers:
     - type: prometheus
       metadata:

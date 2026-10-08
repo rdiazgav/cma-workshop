@@ -11,9 +11,11 @@ This step replaces the CPU trigger from step 02 with a Prometheus trigger that q
 
 == How It Works
 
-Thanos-querier is the OpenShift cluster monitoring component that aggregates metrics from both the platform Prometheus and the user workload Prometheus. KEDA queries thanos-querier using a PromQL expression and a bearer token tied to a ServiceAccount that has the `cluster-monitoring-view` ClusterRole.
+Thanos-querier is the OpenShift cluster monitoring component that aggregates metrics from both the platform Prometheus and the user workload Prometheus. KEDA queries thanos-querier using a PromQL expression and a bearer token tied to a ServiceAccount that has been granted the `thanos-metrics-reader` Role in the `openshift-monitoring` namespace.
 
 cAdvisor already tracks CPU time for every container in the cluster and exposes it as `container_cpu_usage_seconds_total`. No `ServiceMonitor` or application changes are needed. The PromQL query computes a 2-minute rate and multiplies by 1000 to express the result in millicores. KEDA adds a replica whenever the total CPU usage across all `{app-name}` pods exceeds 50 millicores.
+
+NOTE: OpenShift CRC scrapes cAdvisor every 60 seconds. The Prometheus `rate()` function requires at least two data points within the window to return a value. A `[1m]` window contains only one point at most and returns empty, which KEDA treats as 0 (no scale-up). A `[2m]` window reliably captures two scrape points and is the minimum window for CRC.
 
 NOTE: `myboot` is a Spring Boot 1.5 application that does not expose a Prometheus metrics endpoint. Using cAdvisor CPU metrics lets the workshop demonstrate the full authentication and PromQL path without requiring a custom exporter.
 
@@ -22,38 +24,40 @@ NOTE: `myboot` is a Spring Boot 1.5 application that does not expose a Prometheu
 
 === 1. Create the ServiceAccount and grant monitoring access
 
-*What:* Create a ServiceAccount in `{namespace}` and bind the `cluster-monitoring-view` ClusterRole to it.
+*What:* Create a ServiceAccount in `{namespace}`, create a `thanos-metrics-reader` Role in `openshift-monitoring`, and bind the ServiceAccount to it via a RoleBinding.
 
-*Why:* Thanos-querier requires bearer token authentication. A dedicated ServiceAccount keeps the token scoped to this purpose without sharing credentials with application pods.
+*Why:* Thanos-querier requires bearer token authentication. Using a namespaced RoleBinding in `openshift-monitoring` (rather than a cluster-wide ClusterRoleBinding) limits the ServiceAccount's monitoring access to the platform monitoring namespace, following least-privilege.
 
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
 oc apply -f 03-prometheus-trigger/serviceaccount.yaml --context {crc-context}
-oc apply -f 03-prometheus-trigger/clusterrolebinding.yaml --context {crc-context}
+oc apply -f 03-prometheus-trigger/role.yaml --context {crc-context}
+oc apply -f 03-prometheus-trigger/rolebinding.yaml --context {crc-context}
 ----
 
 [.console-output]
 [source,bash]
 ----
 serviceaccount/keda-trigger-sa created
-clusterrolebinding.rbac.authorization.k8s.io/keda-trigger-sa-cluster-monitoring-view created
+role.rbac.authorization.k8s.io/thanos-metrics-reader created
+rolebinding.rbac.authorization.k8s.io/keda-trigger-sa-thanos-metrics-reader created
 ----
 
-.Verify: ClusterRoleBinding is in place
+.Verify: RoleBinding is in place
 [%collapsible]
 ====
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
-oc get clusterrolebinding keda-trigger-sa-cluster-monitoring-view --context {crc-context}
+oc get rolebinding keda-trigger-sa-thanos-metrics-reader -n openshift-monitoring --context {crc-context}
 ----
 
 [.console-output]
 [source,bash]
 ----
-NAME                                       ROLE                                    AGE
-keda-trigger-sa-cluster-monitoring-view   ClusterRole/cluster-monitoring-view     10s
+NAME                                    ROLE                         AGE
+keda-trigger-sa-thanos-metrics-reader   Role/thanos-metrics-reader   10s
 ----
 ====
 
@@ -220,11 +224,11 @@ oc describe scaledobject myboot-prometheus-scaler -n {namespace} --context {crc-
 
 === 5. Generate CPU load and observe scaling
 
-icon:clock[] ~2 minutes (load runs 120 s; KEDA polls every 30 s)
+icon:clock[] ~6 minutes total (load runs 120 s; metric crosses threshold ~80 s in; pods ready ~140 s in; scale-down completes ~180 s after load stops as the 2-minute rate window drains and the 60-second stabilization window elapses)
 
 *What:* Run the load-generating Job to push total CPU usage above the 50-millicore threshold.
 
-*Why:* The PromQL query uses a 2-minute rate window, so the load must run long enough for the window to include high-CPU samples. The Job runs for 120 seconds, which is enough for KEDA to fire within one or two polling cycles.
+*Why:* The PromQL query uses a 2-minute rate window. Once the window fills with high-CPU samples (~60-90 s into the job), KEDA fires within the next polling interval. Scale-down begins once the rate window drains back below threshold (~120 s after load stops), then the 60-second stabilization window elapses.
 
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
@@ -292,7 +296,9 @@ image::03-triggerauth-list.png[OpenShift console TriggerAuthentications list sho
 |===
 | Approach | Notes
 | Deploy a standalone Prometheus instance | Works but requires managing a separate installation. Querying thanos-querier reuses the monitoring stack CRC already runs.
-| Use a `boundServiceAccountToken` volume | Projected volume tokens auto-rotate, which is better for production. For a workshop, `oc create token` is simpler because it avoids mounting a volume into the scaler pod.
+| Use `TriggerAuthentication.spec.boundServiceAccountToken` | KEDA 2.x defines this field, but the Prometheus scaler's `bearer` auth mode does not consume it - tested on CMA 2.19.0-4 / OCP 4.21. The `secretTargetRef` + `oc create token` path remains the supported approach.
+| Use a ClusterRoleBinding with `cluster-monitoring-view` | Works (original approach), but grants the SA cluster-wide monitoring-view access. The `thanos-metrics-reader` RoleBinding in `openshift-monitoring` is narrower.
+| Use `rate(...[1m])` for faster scale-up detection | CRC scrapes cAdvisor every 60 seconds. Prometheus `rate()` requires at least two data points inside the window; a `[1m]` window captures only one point and returns empty. KEDA treats an empty result as 0, so scale-up never fires. Use `[2m]` as the minimum window on CRC.
 | Use `unsafeSsl: "false"` with a mounted CA cert | Mounting the CA cert is the production-safe approach. The workshop uses `unsafeSsl: "true"` to keep the setup shorter. See the link:https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/nodes/automatically-scaling-pods-with-the-custom-metrics-autoscaler-operator[CMA documentation] for the full CA cert setup.
 |===
 
@@ -300,7 +306,7 @@ image::03-triggerauth-list.png[OpenShift console TriggerAuthentications list sho
 
 == Reset
 
-Delete resources in reverse order. The `TriggerAuthentication` must be deleted before the Secret it references.
+Delete resources in reverse order. The `TriggerAuthentication` must be deleted before the Secret it references. The RoleBinding and Role live in `openshift-monitoring`, not `{namespace}`.
 
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
@@ -308,7 +314,10 @@ Delete resources in reverse order. The `TriggerAuthentication` must be deleted b
 oc delete scaledobject myboot-prometheus-scaler -n {namespace} --ignore-not-found --context {crc-context}
 oc delete triggerauthentication keda-trigger-auth-prometheus -n {namespace} --ignore-not-found --context {crc-context}
 oc delete secret keda-trigger-auth-prometheus-secret -n {namespace} --ignore-not-found --context {crc-context}
-oc delete clusterrolebinding keda-trigger-sa-cluster-monitoring-view --ignore-not-found --context {crc-context}
+oc delete rolebinding keda-trigger-sa-thanos-metrics-reader -n openshift-monitoring --ignore-not-found --context {crc-context}
+oc delete role thanos-metrics-reader -n openshift-monitoring --ignore-not-found --context {crc-context}
 oc delete serviceaccount keda-trigger-sa -n {namespace} --ignore-not-found --context {crc-context}
 oc delete job myboot-load -n {namespace} --ignore-not-found --context {crc-context}
+oc wait --for=condition=available deployment/{app-name} -n {namespace} \
+  --timeout=120s --context {crc-context}
 ----

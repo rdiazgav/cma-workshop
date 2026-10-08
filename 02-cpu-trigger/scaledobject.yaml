@@ -13,6 +13,11 @@ spec:
   maxReplicaCount: 5
   cooldownPeriod: 30
   pollingInterval: 15
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 60
   triggers:
     - type: cpu
       metricType: Utilization

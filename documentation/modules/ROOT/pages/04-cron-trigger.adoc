@@ -247,13 +247,15 @@ image::04-scaledobject-cron-detail.png[OpenShift console ScaledObject detail for
 
 == Reset
 
-Delete the combined ScaledObject. Resources from step 03 (TriggerAuthentication, Secret, ServiceMonitor, ClusterRoleBinding, ServiceAccount) remain in place after this reset.
+Delete the combined ScaledObject. Resources from step 03 (TriggerAuthentication, Secret, RoleBinding, Role, ServiceAccount) remain in place after this reset.
 
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
 oc delete scaledobject myboot-cron-scaler -n {namespace} --ignore-not-found --context {crc-context}
 oc scale deployment {app-name} --replicas=2 -n {namespace} --context {crc-context}
+oc wait --for=condition=available deployment/{app-name} -n {namespace} \
+  --timeout=120s --context {crc-context}
 ----
 
 To tear down the full workshop, run the reset commands from each step in reverse order, then delete the namespace:
@@ -262,5 +264,6 @@ To tear down the full workshop, run the reset commands from each step in reverse
 [source,bash,subs="+macros,+attributes"]
 ----
 oc delete namespace {namespace} --context {crc-context}
-oc delete clusterrolebinding keda-trigger-sa-cluster-monitoring-view --ignore-not-found --context {crc-context}
+oc delete rolebinding keda-trigger-sa-thanos-metrics-reader -n openshift-monitoring --ignore-not-found --context {crc-context}
+oc delete role thanos-metrics-reader -n openshift-monitoring --ignore-not-found --context {crc-context}
 ----
