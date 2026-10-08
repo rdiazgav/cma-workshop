@@ -323,7 +323,7 @@ cma-demo   Active   10s
 [.console-input]
 [source,bash,subs="+macros,+attributes"]
 ----
-git clone https://github.com/<github-user>/cma-workshop.git
+git clone https://github.com/rdiazgav/cma-workshop.git
 cd cma-workshop
 ----
 

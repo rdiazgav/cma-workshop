@@ -1,7 +1,7 @@
 {
   "name": "cma-workshop",
   "description": "Custom Metrics Autoscaler on OpenShift Local - Course Documentation Site",
-  "homepage": "https://<github-user>.github.io/cma-workshop",
+  "homepage": "https://rdiazgav.github.io/cma-workshop",
   "dependencies": {
     "@antora/cli": "^2.3.1",
     "@antora/site-generator-default": "^2.3.1",
@@ -23,7 +23,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/<github-user>/cma-workshop.git"
+    "url": "git+https://github.com/rdiazgav/cma-workshop.git"
   },
   "license": "Apache-2.0",
   "babel": {

@@ -4,7 +4,7 @@ This workshop walks through four progressive steps of configuring the Custom Met
 
 == View the Course
 
-The full course is published at: https://<github-user>.github.io/cma-workshop
+The full course is published at: https://rdiazgav.github.io/cma-workshop
 
 == Local Development
 

@@ -3,7 +3,7 @@ runtime:
 
 site:
   title: Custom Metrics Autoscaler on OpenShift Local
-  url: https://<github-user>.github.io/cma-workshop
+  url: https://rdiazgav.github.io/cma-workshop
   start_page: cma-workshop::index.adoc
 
 content:
