@@ -22,7 +22,7 @@ spec:
   triggers:
     - type: prometheus
       metadata:
-        serverAddress: https://thanos-querier.openshift-monitoring.svc.cluster.local:9091
+        serverAddress: https://thanos-querier.openshift-monitoring.svc.cluster.local:9092
         namespace: cma-demo
         metricName: myboot_cpu_millicores
         threshold: "50"

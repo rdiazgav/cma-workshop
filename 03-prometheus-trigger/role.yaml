@@ -1,15 +1,19 @@
 # role.yaml
-# Purpose: Namespaced Role in openshift-monitoring that grants permission to query
-# the platform Prometheus API via thanos-querier. Scoped to the k8s Prometheus instance.
+# Purpose: Namespaced Role in cma-demo that grants keda-trigger-sa permission to be
+# authenticated by thanos-querier's tenancy port (9092). The tenancy port enforces
+# namespace isolation by checking if the bearer token can get pods in the namespace.
+# This is least-privilege: the SA can only read metrics scoped to cma-demo.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: thanos-metrics-reader
-  namespace: openshift-monitoring
+  namespace: cma-demo
   labels:
     app.kubernetes.io/part-of: cma-demo
 rules:
-  - apiGroups: ["monitoring.coreos.com"]
-    resourceNames: ["k8s"]
-    resources: ["prometheuses/api"]
-    verbs: ["get", "create", "update"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods", "nodes"]
+    verbs: ["get", "list", "watch"]

@@ -1,13 +1,12 @@
 # rolebinding.yaml
-# Purpose: RoleBinding in openshift-monitoring that grants keda-trigger-sa (in cma-demo)
-# permission to query thanos-querier via the thanos-metrics-reader Role.
-# A RoleBinding (not ClusterRoleBinding) limits this SA's monitoring access to the
-# openshift-monitoring namespace scope rather than the full cluster.
+# Purpose: RoleBinding in cma-demo that grants keda-trigger-sa the thanos-metrics-reader
+# Role. The tenancy port (9092) checks this SA's pod-read access to enforce that only
+# cma-demo metrics are accessible - no cross-namespace metric reads.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: keda-trigger-sa-thanos-metrics-reader
-  namespace: openshift-monitoring
+  namespace: cma-demo
   labels:
     app.kubernetes.io/part-of: cma-demo
 roleRef:
