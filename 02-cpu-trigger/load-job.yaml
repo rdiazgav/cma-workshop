@@ -1,0 +1,34 @@
+# load-job.yaml
+# Purpose: Runs a short-lived Job that sends a stream of HTTP requests to myboot
+# to drive CPU utilization above the 50% threshold and trigger scaling.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: myboot-load
+  namespace: cma-demo
+  labels:
+    app.kubernetes.io/part-of: cma-demo
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: load
+          image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Sending load to myboot for 120 seconds..."
+              end=$(($(date +%s) + 120))
+              while [ $(date +%s) -lt $end ]; do
+                curl -sk http://myboot.cma-demo.svc.cluster.local:8080/ -o /dev/null
+              done
+              echo "Load complete."
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

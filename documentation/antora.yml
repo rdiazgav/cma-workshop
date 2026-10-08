@@ -1,0 +1,6 @@
+name: cma-workshop
+title: Custom Metrics Autoscaler on OpenShift Local
+version: master
+nav:
+  - modules/ROOT/nav.adoc
+start_page: ROOT:index.adoc

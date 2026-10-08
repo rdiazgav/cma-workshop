@@ -1,0 +1,259 @@
+= Step 04 - Cron Trigger and Pause
+include::_attributes.adoc[]
+
+This step adds a cron trigger to the existing Prometheus-based `ScaledObject`, so that `{app-name}` pre-scales to a minimum of 3 replicas during business hours (Monday through Friday, 09:00-17:00 UTC) regardless of current CPU load. It also covers the pause annotation, which lets you suspend autoscaling for a maintenance window without deleting the `ScaledObject`.
+
+== Prerequisites
+
+* xref:03-prometheus-trigger.adoc[Step 03] complete: `myboot-prometheus-scaler` ScaledObject and `TriggerAuthentication` present
+* `oc` CLI authenticated as cluster-admin
+
+== How It Works
+
+When multiple triggers are defined on a `ScaledObject`, KEDA takes the maximum desired replica count across all active triggers. During business hours, the cron trigger sets a floor of 3 replicas. If the Prometheus trigger simultaneously computes a higher value - say 4 replicas - KEDA uses 4. Outside business hours the cron trigger is inactive and only the Prometheus trigger drives scaling, so the deployment can scale down to `minReplicaCount: 1` during idle periods.
+
+The pause annotation (`autoscaling.keda.sh/paused-replicas`) sets a fixed replica count and disables all scaling logic until the annotation is removed. This is the standard way to freeze a deployment during a deployment window or incident investigation.
+
+[#scaledobject-cron]
+== Steps to Apply
+
+=== 1. Replace the Prometheus ScaledObject with the combined cron + Prometheus ScaledObject
+
+*What:* Delete the step 03 ScaledObject and apply the new one that includes both a cron trigger and the Prometheus trigger.
+
+*Why:* KEDA does not allow two `ScaledObject` resources to manage the same Deployment. The combined ScaledObject replaces the Prometheus-only one from step 03.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc delete scaledobject myboot-prometheus-scaler -n {namespace} --ignore-not-found --context {crc-context}
+oc apply -f 04-cron-trigger/scaledobject.yaml --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+scaledobject.keda.sh/myboot-prometheus-scaler deleted
+scaledobject.keda.sh/myboot-cron-scaler created
+----
+
+.Verify: ScaledObject shows two triggers
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get scaledobject myboot-cron-scaler -n {namespace} --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+NAME               SCALETARGETKIND      SCALETARGETNAME   MIN   MAX   TRIGGERS            READY   ACTIVE
+myboot-cron-scaler apps/v1.Deployment   myboot            1     5     prometheus, cron    True    False
+----
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc describe scaledobject myboot-cron-scaler -n {namespace} --context {crc-context} | grep -A 5 Triggers
+----
+====
+
+'''
+
+=== 2. Observe the cron trigger during business hours
+
+icon:clock[] ~5 minutes (pods start immediately; Prometheus metric may push briefly to 5 replicas during JVM startup, then settles to 3 as CPU drops)
+
+*What:* Check the current replica count and confirm it is at least 3 during a business-hours window (Mon-Fri 09:00-17:00 UTC).
+
+*Why:* The cron trigger fires silently - there is no event to wait for. The best way to confirm it is working is to check the replica count at a time when the cron window is active.
+
+TIP: If your local time is outside 09:00-17:00 UTC on a weekday, adjust the cron expression in `04-cron-trigger/scaledobject.yaml` to a window that includes right now. Change `start` and `end` to a time 2-3 minutes in the future, apply the manifest, and watch the replica count.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get deployment {app-name} -n {namespace} --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+NAME     READY   UP-TO-DATE   AVAILABLE   AGE
+myboot   3/3     3            3           20m
+----
+
+.Verify: KEDA reports the cron trigger as active
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc describe scaledobject myboot-cron-scaler -n {namespace} --context {crc-context} | grep -A 20 "Status:"
+----
+
+[.console-output]
+[source,bash]
+----
+Status:
+  Conditions:
+    ...
+    Message:               Cron trigger is active
+    Reason:                CronTriggerActive
+    Status:                True
+    Type:                  Active
+----
+====
+
+'''
+
+[#pause-annotation]
+=== 3. Pause autoscaling with an annotation
+
+*What:* Add the `autoscaling.keda.sh/paused-replicas` annotation to the `ScaledObject` to drain the deployment to zero replicas and freeze it.
+
+*Why:* During a maintenance window or planned downtime, you want full control over the replica count without KEDA reacting to CPU or cron schedules. Setting the value to `0` drains all pods immediately. Any non-negative integer works; KEDA ignores all triggers while the annotation is present.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc annotate scaledobject myboot-cron-scaler \
+  autoscaling.keda.sh/paused-replicas="0" \
+  -n {namespace} \
+  --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+scaledobject.keda.sh/myboot-cron-scaler annotated
+----
+
+Wait about 15 seconds for the deployment to drain:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get pods -n {namespace} -l app={app-name} --context {crc-context}
+----
+
+.Verify: all pods removed and ScaledObject shows PAUSED=True
+[%collapsible]
+====
+[.console-output]
+[source,bash]
+----
+No resources found in cma-demo namespace.
+----
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get scaledobject myboot-cron-scaler -n {namespace} --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+NAME               ...   READY   ACTIVE   FALLBACK   PAUSED
+myboot-cron-scaler ...   True    True     False      True
+----
+====
+
+'''
+
+=== 4. Resume autoscaling
+
+*What:* Remove the pause annotation to let KEDA resume normal scaling.
+
+*Why:* The annotation persists until explicitly removed. Removing it gives control back to the configured triggers immediately.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc annotate scaledobject myboot-cron-scaler \
+  autoscaling.keda.sh/paused-replicas- \
+  -n {namespace} \
+  --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+scaledobject.keda.sh/myboot-cron-scaler annotated
+----
+
+.Verify: ScaledObject is no longer paused
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get scaledobject myboot-cron-scaler -n {namespace} --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+NAME               ...   READY   ACTIVE   FALLBACK   PAUSED
+myboot-cron-scaler ...   True    True     False      False
+----
+====
+
+'''
+
+== What This Solves (Compared to Step 03)
+
+[cols="2,3",options="header"]
+|===
+| Problem from Step 03 | How This Step Solves It
+| Scaling is fully reactive: replicas only increase after load arrives | The cron trigger pre-scales to 3 replicas before the business-hours traffic window starts
+| No way to pause scaling without deleting the ScaledObject | The `paused-replicas` annotation freezes the deployment at a fixed count without removing any configuration
+|===
+
+== What This Does NOT Solve (Yet)
+
+[cols="2,3",options="header"]
+|===
+| Remaining Problem | Notes
+| Cron schedules are hardcoded in the manifest | To change the window, edit the manifest and reapply. There is no dynamic schedule API in KEDA today.
+| Scale-to-zero during off-hours | Set `minReplicaCount: 0` and remove the cron trigger, or add a second cron trigger with `desiredReplicas: "0"` for off-hours. Be aware of cold-start latency when traffic resumes.
+|===
+
+== Official Documentation
+
+* link:https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/nodes/automatically-scaling-pods-with-the-custom-metrics-autoscaler-operator#nodes-cma-autoscaling-custom-trigger-cron_nodes-cma-autoscaling-custom[Cron trigger reference - OpenShift 4.17+]
+* link:https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/nodes/automatically-scaling-pods-with-the-custom-metrics-autoscaler-operator#nodes-cma-autoscaling-pause_nodes-cma-autoscaling-custom[Pausing autoscaling - OpenShift 4.17+]
+
+== Alternatives Considered
+
+[cols="2,4",options="header"]
+|===
+| Approach | Notes
+| Use a separate ScaledObject for cron only | Two ScaledObjects on the same Deployment conflict. Combining triggers in one ScaledObject is the correct approach.
+| Scale to zero outside business hours with a second cron trigger | Valid for batch workloads with no latency requirement. For an HTTP-serving app with a Route, the cold start makes this less useful without a warming mechanism.
+|===
+
+'''
+
+== Reset
+
+Delete the combined ScaledObject. Resources from step 03 (TriggerAuthentication, Secret, ServiceMonitor, ClusterRoleBinding, ServiceAccount) remain in place after this reset.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc delete scaledobject myboot-cron-scaler -n {namespace} --ignore-not-found --context {crc-context}
+oc scale deployment {app-name} --replicas=2 -n {namespace} --context {crc-context}
+----
+
+To tear down the full workshop, run the reset commands from each step in reverse order, then delete the namespace:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc delete namespace {namespace} --context {crc-context}
+oc delete clusterrolebinding keda-trigger-sa-cluster-monitoring-view --ignore-not-found --context {crc-context}
+----

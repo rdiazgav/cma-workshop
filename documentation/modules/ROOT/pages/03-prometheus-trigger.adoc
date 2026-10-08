@@ -1,0 +1,311 @@
+= Step 03 - Prometheus Trigger
+include::_attributes.adoc[]
+
+This step replaces the CPU trigger from step 02 with a Prometheus trigger that queries CPU usage directly from thanos-querier using cAdvisor metrics already available in the cluster monitoring stack. No additional exporters or ServiceMonitors are required.
+
+== Prerequisites
+
+* xref:02-cpu-trigger.adoc[Step 02] reset: `myboot-cpu-scaler` ScaledObject deleted
+* Cluster monitoring and user workload monitoring enabled (xref:00-setup.adoc#cluster-monitoring[step 3 of setup])
+* `oc` CLI authenticated as cluster-admin
+
+== How It Works
+
+Thanos-querier is the OpenShift cluster monitoring component that aggregates metrics from both the platform Prometheus and the user workload Prometheus. KEDA queries thanos-querier using a PromQL expression and a bearer token tied to a ServiceAccount that has the `cluster-monitoring-view` ClusterRole.
+
+cAdvisor already tracks CPU time for every container in the cluster and exposes it as `container_cpu_usage_seconds_total`. No `ServiceMonitor` or application changes are needed. The PromQL query computes a 2-minute rate and multiplies by 1000 to express the result in millicores. KEDA adds a replica whenever the total CPU usage across all `{app-name}` pods exceeds 50 millicores.
+
+NOTE: `myboot` is a Spring Boot 1.5 application that does not expose a Prometheus metrics endpoint. Using cAdvisor CPU metrics lets the workshop demonstrate the full authentication and PromQL path without requiring a custom exporter.
+
+[#setup-sa]
+== Steps to Apply
+
+=== 1. Create the ServiceAccount and grant monitoring access
+
+*What:* Create a ServiceAccount in `{namespace}` and bind the `cluster-monitoring-view` ClusterRole to it.
+
+*Why:* Thanos-querier requires bearer token authentication. A dedicated ServiceAccount keeps the token scoped to this purpose without sharing credentials with application pods.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc apply -f 03-prometheus-trigger/serviceaccount.yaml --context {crc-context}
+oc apply -f 03-prometheus-trigger/clusterrolebinding.yaml --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+serviceaccount/keda-trigger-sa created
+clusterrolebinding.rbac.authorization.k8s.io/keda-trigger-sa-cluster-monitoring-view created
+----
+
+.Verify: ClusterRoleBinding is in place
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get clusterrolebinding keda-trigger-sa-cluster-monitoring-view --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+NAME                                       ROLE                                    AGE
+keda-trigger-sa-cluster-monitoring-view   ClusterRole/cluster-monitoring-view     10s
+----
+====
+
+'''
+
+[#triggerauth]
+=== 2. Create the bearer token secret and TriggerAuthentication
+
+*What:* Generate a token for the ServiceAccount, store it in a Secret, and create a `TriggerAuthentication` that tells KEDA where to find it.
+
+*Why:* KEDA reads credentials from a Secret via `TriggerAuthentication` rather than accessing the ServiceAccount token directly. This decouples the credential lifecycle from the scaler configuration.
+
+Generate the token and export it:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+export THANOS_TOKEN=$(oc create token keda-trigger-sa \
+  --duration=87600h \
+  -n {namespace} \
+  --context {crc-context})
+echo "Token generated (first 40 chars): ${THANOS_TOKEN:0:40}..."
+----
+
+NOTE: `--duration=87600h` sets the token lifetime to approximately 10 years so it does not expire mid-workshop. In production, use a shorter duration and rotate the secret on a schedule.
+
+Apply the secret using `envsubst` to substitute the token value:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+envsubst < 03-prometheus-trigger/triggerauth-secret.yaml | \
+  oc apply --context {crc-context} -f -
+----
+
+[.console-output]
+[source,bash]
+----
+secret/keda-trigger-auth-prometheus-secret created
+----
+
+NOTE: `envsubst` substitutes `${THANOS_TOKEN}` in the YAML template before passing it to `oc apply`. Running `oc apply -f 03-prometheus-trigger/triggerauth-secret.yaml` directly would store the literal string `${THANOS_TOKEN}` in the Secret, not the token value.
+
+Create the `TriggerAuthentication`:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc apply -f 03-prometheus-trigger/triggerauth.yaml --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+triggerauthentication.keda.sh/keda-trigger-auth-prometheus created
+----
+
+.Verify: TriggerAuthentication references the secret
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get triggerauthentication keda-trigger-auth-prometheus -n {namespace} --context {crc-context} -o yaml
+----
+
+[.console-output]
+[source,bash]
+----
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: keda-trigger-auth-prometheus
+  namespace: cma-demo
+spec:
+  secretTargetRef:
+    - key: bearerToken
+      name: keda-trigger-auth-prometheus-secret
+      parameter: bearerToken
+----
+====
+
+'''
+
+[#verify-metric]
+=== 3. Verify the cAdvisor metric is available in thanos-querier
+
+*What:* Run a one-shot pod to query thanos-querier and confirm the CPU metric for `{app-name}` returns data.
+
+*Why:* Confirming the metric before applying the `ScaledObject` makes it easier to tell whether a later problem is in the query or in the KEDA configuration.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc run metric-check --rm -i --restart=Never \
+  --image=registry.access.redhat.com/ubi9/ubi-minimal:latest \
+  -n {namespace} --context {crc-context} \
+  -- curl -sk \
+  -H "Authorization: Bearer $THANOS_TOKEN" \
+  'https://thanos-querier.openshift-monitoring.svc.cluster.local:9091/api/v1/query?query=sum(rate(container_cpu_usage_seconds_total%7Bnamespace%3D%22cma-demo%22%2Ccontainer%3D%22myboot%22%7D%5B2m%5D))*1000'
+----
+
+.Verify: thanos-querier returns a numeric result
+[%collapsible]
+====
+[.console-output]
+[source,bash]
+----
+{"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1728397200,"7.4"]}]}}
+----
+
+A numeric value such as `7.4` (millicores at idle) confirms the metric path is working. An empty `result: []` means the pods are too new - wait 2 minutes for cAdvisor to accumulate a full rate window and retry.
+====
+
+'''
+
+[#scaledobject-prometheus]
+=== 4. Create the Prometheus-based ScaledObject
+
+*What:* Delete the CPU ScaledObject if still present, then apply the Prometheus-based one.
+
+*Why:* Two `ScaledObject` resources targeting the same Deployment each try to manage their own HPA, which causes conflicts. Delete the CPU scaler before creating the Prometheus scaler.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc delete scaledobject myboot-cpu-scaler -n {namespace} --ignore-not-found --context {crc-context}
+oc apply -f 03-prometheus-trigger/scaledobject.yaml --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+scaledobject.keda.sh/myboot-cpu-scaler deleted
+scaledobject.keda.sh/myboot-prometheus-scaler created
+----
+
+.Verify: ScaledObject is ready
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get scaledobject myboot-prometheus-scaler -n {namespace} --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+NAME                       SCALETARGETKIND      SCALETARGETNAME   MIN   MAX   TRIGGERS     READY   ACTIVE
+myboot-prometheus-scaler   apps/v1.Deployment   myboot            1     5     prometheus   True    False
+----
+
+If `READY` shows `False`, check the ScaledObject conditions for error messages:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc describe scaledobject myboot-prometheus-scaler -n {namespace} --context {crc-context} | grep -A 10 Conditions
+----
+====
+
+'''
+
+=== 5. Generate CPU load and observe scaling
+
+icon:clock[] ~2 minutes (load runs 120 s; KEDA polls every 30 s)
+
+*What:* Run the load-generating Job to push total CPU usage above the 50-millicore threshold.
+
+*Why:* The PromQL query uses a 2-minute rate window, so the load must run long enough for the window to include high-CPU samples. The Job runs for 120 seconds, which is enough for KEDA to fire within one or two polling cycles.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc apply -f 02-cpu-trigger/load-job.yaml --context {crc-context}
+----
+
+Watch scaling events in a second terminal:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+watch oc get pods -n {namespace} -l app={app-name} --context {crc-context}
+----
+
+.Verify: replica count increased
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get scaledobject myboot-prometheus-scaler -n {namespace} --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+NAME                       ...   READY   ACTIVE   FALLBACK   AGE
+myboot-prometheus-scaler   ...   True    True     False      3m
+----
+====
+
+'''
+
+== What This Solves (Compared to Step 02)
+
+[cols="2,3",options="header"]
+|===
+| Problem from Step 02 | How This Step Solves It
+| Scaling is driven by a built-in CPU trigger that only reads Kubernetes metrics | The Prometheus trigger can evaluate any PromQL expression - CPU, memory, queue depth, or custom business metrics
+| No authentication to external metric sources | The TriggerAuthentication pattern works for any token-protected endpoint, not just thanos-querier
+|===
+
+== What This Does NOT Solve (Yet)
+
+[cols="2,3",options="header"]
+|===
+| Remaining Problem | Addressed In
+| Scaling is reactive: replicas only change after load arrives | xref:04-cron-trigger.adoc[Step 04 - Cron Trigger] adds pre-scheduled scaling for predictable load patterns
+| No way to pause autoscaling for maintenance | xref:04-cron-trigger.adoc[Step 04 - Cron Trigger] covers the pause annotation
+|===
+
+== Official Documentation
+
+* link:https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/nodes/automatically-scaling-pods-with-the-custom-metrics-autoscaler-operator#nodes-cma-autoscaling-custom-trigger-prometheus_nodes-cma-autoscaling-custom[Prometheus trigger reference - OpenShift 4.17+]
+* link:https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/nodes/automatically-scaling-pods-with-the-custom-metrics-autoscaler-operator#nodes-cma-autoscaling-custom-authentication[TriggerAuthentication reference - OpenShift 4.17+]
+* link:https://docs.openshift.com/container-platform/4.17/monitoring/monitoring-overview.html[OpenShift monitoring overview]
+
+== Alternatives Considered
+
+[cols="2,4",options="header"]
+|===
+| Approach | Notes
+| Deploy a standalone Prometheus instance | Works but requires managing a separate installation. Querying thanos-querier reuses the monitoring stack CRC already runs.
+| Use a `boundServiceAccountToken` volume | Projected volume tokens auto-rotate, which is better for production. For a workshop, `oc create token` is simpler because it avoids mounting a volume into the scaler pod.
+| Use `unsafeSsl: "false"` with a mounted CA cert | Mounting the CA cert is the production-safe approach. The workshop uses `unsafeSsl: "true"` to keep the setup shorter. See the link:https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/nodes/automatically-scaling-pods-with-the-custom-metrics-autoscaler-operator[CMA documentation] for the full CA cert setup.
+|===
+
+'''
+
+== Reset
+
+Delete resources in reverse order. The `TriggerAuthentication` must be deleted before the Secret it references.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc delete scaledobject myboot-prometheus-scaler -n {namespace} --ignore-not-found --context {crc-context}
+oc delete triggerauthentication keda-trigger-auth-prometheus -n {namespace} --ignore-not-found --context {crc-context}
+oc delete secret keda-trigger-auth-prometheus-secret -n {namespace} --ignore-not-found --context {crc-context}
+oc delete clusterrolebinding keda-trigger-sa-cluster-monitoring-view --ignore-not-found --context {crc-context}
+oc delete serviceaccount keda-trigger-sa -n {namespace} --ignore-not-found --context {crc-context}
+oc delete job myboot-load -n {namespace} --ignore-not-found --context {crc-context}
+----

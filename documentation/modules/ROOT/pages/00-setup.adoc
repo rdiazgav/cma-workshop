@@ -1,0 +1,350 @@
+= Cluster Setup
+include::_attributes.adoc[]
+
+This page walks through starting OpenShift Local (CRC), enabling cluster monitoring, installing the Custom Metrics Autoscaler operator, and creating the workshop namespace. All four workshop steps depend on this setup being complete.
+
+[#prerequisites]
+== Prerequisites
+
+* link:https://console.redhat.com/openshift/create/local[OpenShift Local (CRC)] 2.30+ installed and licensed
+* `oc` CLI in your PATH
+* `git` CLI in your PATH
+* A host machine with at least 16 GB of RAM (CRC will use 14 GB)
+* A host machine with at least 6 CPU cores (CRC will use 6)
+
+[#crc-config]
+== 1. Configure and start CRC
+
+icon:clock[] ~5 minutes (CRC first start downloads a ~3 GB bundle)
+
+*What:* Set CRC memory and CPU limits, then start the cluster.
+
+*Why:* The default CRC configuration (9 GB RAM, 4 CPUs) does not leave enough headroom for the OpenShift monitoring stack. Cluster monitoring alone needs 4-6 GB on top of the base cluster.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+crc config set memory 14336
+crc config set cpus 6
+crc start
+----
+
+[.console-output]
+[source,bash]
+----
+INFO Checking if running as non-root
+INFO Checking if crc-admin-helper executable is cached
+...
+INFO Starting OpenShift cluster... [waiting 3m]
+INFO
+INFO To access the cluster, first set up your environment by following 'crc oc-env' instructions.
+INFO Then you can access it by running 'oc login -u developer https://api.crc.testing:6443'.
+INFO To login as an admin, run 'oc login -u kubeadmin https://api.crc.testing:6443'.
+INFO
+INFO You can now run 'crc console' and use these credentials to access the OpenShift web console.
+----
+
+NOTE: The kubeadmin password is printed in the `crc start` output. Copy it into your `myenv.sh` file before proceeding.
+
+.Verify: CRC is running
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+crc status
+----
+
+[.console-output]
+[source,bash]
+----
+CRC VM:          Running
+OpenShift:       Running (v4.21.14)
+RAM Usage:       ...
+Disk Usage:      ...
+Cache Usage:     ...
+----
+====
+
+'''
+
+[#login]
+== 2. Log in and rename the context
+
+*What:* Authenticate to the CRC cluster and rename the auto-generated context to `{crc-context}`.
+
+*Why:* OpenShift generates a long context name such as `default/api-crc-testing:6443/kubeadmin`. Renaming it to `{crc-context}` keeps every `oc` command in this workshop consistent.
+
+Create a file called `myenv.sh` in the workshop root (it is gitignored) and fill in the kubeadmin password from the `crc start` output:
+
+[source,bash]
+----
+export CRC_API_URL="https://api.crc.testing:6443"
+export CRC_PASSWORD="<kubeadmin-password>"
+export NAMESPACE="cma-demo"
+
+oc config delete-context crc 2>/dev/null || true
+oc login "$CRC_API_URL" --username kubeadmin --password "$CRC_PASSWORD" --insecure-skip-tls-verify=true
+oc config rename-context "$(oc config current-context)" crc
+----
+
+Then source it:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+source myenv.sh
+----
+
+.Verify: context is named crc
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc config get-contexts --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+CURRENT   NAME   CLUSTER               AUTHINFO                           NAMESPACE
+*         crc    api-crc-testing:6443  kubeadmin/api-crc-testing:6443
+----
+====
+
+'''
+
+[#cluster-monitoring]
+== 3. Enable cluster monitoring and user workload monitoring
+
+icon:clock[] ~3 minutes (Prometheus and Alertmanager pods take about 2-3 minutes to reach Running)
+
+*What:* Create the `cluster-monitoring-config` ConfigMap in the `{monitoring-ns}` namespace with `enableUserWorkload: true`.
+
+*Why:* CRC ships with cluster monitoring disabled by default to save memory. The Prometheus trigger in step 03 queries thanos-querier, which only runs when cluster monitoring is active. Setting `enableUserWorkload: true` in the same ConfigMap also starts the user workload Prometheus instance that scrapes application metrics via `ServiceMonitor` resources.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc apply -f - --context {crc-context} <<'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+data:
+  config.yaml: |
+    enableUserWorkload: true
+EOF
+----
+
+[.console-output]
+[source,bash]
+----
+configmap/cluster-monitoring-config created
+----
+
+Wait for the monitoring pods to be ready:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc wait pod \
+  -l app.kubernetes.io/name=prometheus \
+  -n {monitoring-ns} \
+  --for=condition=Ready \
+  --timeout=300s \
+  --context {crc-context}
+----
+
+IMPORTANT: If the wait times out, the host machine may not have enough free RAM. Check `crc status` and confirm at least 2 GB is free after CRC starts. You can also watch pod status with `oc get pods -n {monitoring-ns} -w --context {crc-context}`.
+
+.Verify: thanos-querier is running
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get pods -n {monitoring-ns} -l app.kubernetes.io/name=thanos-query --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+NAME                              READY   STATUS    RESTARTS   AGE
+thanos-querier-75f678d47d-abc12   6/6     Running   0          2m
+----
+====
+
+'''
+
+[#install-cma]
+== 4. Install the Custom Metrics Autoscaler operator
+
+icon:clock[] ~2 minutes (Subscription created in ~10s, CSV ready in ~90s)
+
+*What:* Install the Custom Metrics Autoscaler operator from OperatorHub into the `{cma-operator-ns}` namespace, then create a `KedaController` instance to activate it.
+
+*Why:* The CMA operator ships the KEDA controller and admission webhook. Without a `KedaController` CR, the operator installs but does not start the scaler.
+
+=== 4a. Create the operator namespace and install the Subscription
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc apply -f - --context {crc-context} <<'EOF'
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-keda
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-keda
+  namespace: openshift-keda
+spec:
+  targetNamespaces:
+    - openshift-keda
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: openshift-custom-metrics-autoscaler-operator
+  namespace: openshift-keda
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: openshift-custom-metrics-autoscaler-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+EOF
+----
+
+Wait for the CSV to succeed:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc wait csv \
+  -n {cma-operator-ns} \
+  -l operators.coreos.com/openshift-custom-metrics-autoscaler-operator.openshift-keda \
+  --for=jsonpath='{.status.phase}'=Succeeded \
+  --timeout=180s \
+  --context {crc-context}
+----
+
+=== 4b. Create the KedaController instance
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc apply -f - --context {crc-context} <<'EOF'
+apiVersion: keda.sh/v1alpha1
+kind: KedaController
+metadata:
+  name: keda
+  namespace: openshift-keda
+spec:
+  watchNamespace: ""
+  operator:
+    logLevel: info
+    logEncoder: console
+  metricsServer:
+    logLevel: "0"
+  serviceAccount: {}
+EOF
+----
+
+.Verify: KEDA controller pods are running
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get pods -n {cma-operator-ns} --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+NAME                                                  READY   STATUS    RESTARTS   AGE
+keda-admission-webhooks-xxxx                          1/1     Running   0          90s
+keda-metrics-apiserver-xxxx                           1/1     Running   0          90s
+keda-operator-xxxx                                    1/1     Running   0          90s
+custom-metrics-autoscaler-operator-xxxx               1/1     Running   0          2m
+----
+====
+
+'''
+
+[#create-namespace]
+== 5. Create the workshop namespace
+
+*What:* Apply the namespace manifest for `{namespace}`.
+
+*Why:* All workshop resources land in this namespace. A dedicated namespace makes cleanup straightforward and avoids interfering with other workloads on the cluster.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc apply -f 00-setup/namespace.yaml --context {crc-context}
+----
+
+.Verify: namespace exists
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get namespace {namespace} --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+NAME       STATUS   AGE
+cma-demo   Active   10s
+----
+====
+
+'''
+
+[#clone-repo]
+== 6. Clone the workshop repository
+
+*What:* Clone the repository to get the YAML manifests for each step.
+
+*Why:* Each step references YAML files in the corresponding step directory. The `oc apply -f` commands throughout the workshop expect these files to be present locally.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+git clone https://github.com/<github-user>/cma-workshop.git
+cd cma-workshop
+----
+
+'''
+
+[#export-variables]
+== 7. Export workshop variables
+
+*What:* Source `myenv.sh` to load the variables used by `envsubst` when applying YAML templates.
+
+*Why:* One YAML file in this workshop contains a `${VARIABLE}` placeholder (`03-prometheus-trigger/triggerauth-secret.yaml`). Running `envsubst` against it substitutes the actual value before `oc apply`.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+source myenv.sh
+----
+
+[cols="2,2,4",options="header"]
+|===
+| Variable | Used in | Description
+| `CRC_API_URL` | `myenv.sh` login | API endpoint for the CRC cluster
+| `CRC_PASSWORD` | `myenv.sh` login | kubeadmin password from `crc start` output
+| `NAMESPACE` | reference in commands | Target namespace (`cma-demo`)
+| `THANOS_TOKEN` | `03-prometheus-trigger/triggerauth-secret.yaml` | Bearer token for thanos-querier (set in step 03)
+|===

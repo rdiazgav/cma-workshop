@@ -1,0 +1,20 @@
+# servicemonitor.yaml
+# Purpose: Tells the user workload Prometheus instance to scrape myboot's
+# /actuator/prometheus endpoint so that http_server_requests_seconds_count
+# is available in thanos-querier.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: myboot
+  namespace: cma-demo
+  labels:
+    app: myboot
+    app.kubernetes.io/part-of: cma-demo
+spec:
+  selector:
+    matchLabels:
+      app: myboot
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 15s

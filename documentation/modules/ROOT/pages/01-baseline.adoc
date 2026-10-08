@@ -1,0 +1,159 @@
+= Step 01 - Baseline: Fixed Replicas
+include::_attributes.adoc[]
+
+This step deploys a Spring Boot application to the `{namespace}` namespace with a fixed replica count. No autoscaling is configured yet. The goal is to confirm the application runs and to establish the starting point that all later steps build on.
+
+== Prerequisites
+
+* xref:00-setup.adoc[Cluster setup] complete
+* `oc` CLI authenticated as cluster-admin
+* Context renamed to `{crc-context}` as described in xref:00-setup.adoc[Cluster Setup]
+* Workshop repository cloned locally
+
+[#deploy-app]
+== Steps to Apply
+
+=== 1. Deploy the application
+
+icon:clock[] ~2 minutes on CRC (both pods must pass the startupProbe; JVM startup takes 30-60 seconds each)
+
+*What:* Apply the Deployment, Service, and Route manifests for the `{app-name}` application.
+
+*Why:* The Deployment sets `replicas: 2` with no HPA or ScaledObject attached. This gives a stable baseline to compare against after adding scaling triggers in later steps.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc apply -f 01-baseline/deployment.yaml --context {crc-context}
+oc apply -f 01-baseline/service.yaml --context {crc-context}
+oc apply -f 01-baseline/route.yaml --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+deployment.apps/myboot created
+service/myboot created
+route.route.openshift.io/myboot created
+----
+
+Wait for both pods to be ready:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc rollout status deployment/{app-name} -n {namespace} --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+deployment "myboot" successfully rolled out
+----
+
+.Verify: two pods running
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get pods -n {namespace} -l app={app-name} --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+NAME                      READY   STATUS    RESTARTS   AGE
+myboot-6d9b7f5c4d-abc12   1/1     Running   0          45s
+myboot-6d9b7f5c4d-xyz34   1/1     Running   0          45s
+----
+====
+
+'''
+
+[#verify-baseline]
+=== 2. Confirm the application responds
+
+*What:* Retrieve the Route hostname and send a test request.
+
+*Why:* Confirming HTTP connectivity before adding autoscaling means any later scaling failure is not a basic connectivity problem.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+MYBOOT_URL=$(oc get route {app-name} -n {namespace} --context {crc-context} \
+  -o jsonpath='https://{.spec.host}')
+echo "$MYBOOT_URL"
+curl -sk "$MYBOOT_URL"
+----
+
+[.console-output]
+[source,bash]
+----
+https://myboot-cma-demo.apps-crc.testing
+Bonjour from Spring Boot! 1 on myboot-6d9b7f5c4d-abc12
+----
+
+TIP: The response rotates between the two pods. Run `curl` a few times to see both pod names appear.
+
+.Verify: health endpoint responds
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+curl -sk "$MYBOOT_URL/health"
+----
+
+[.console-output]
+[source,bash]
+----
+I am fine, thank you
+----
+====
+
+'''
+
+== What This Solves
+
+[cols="2,3",options="header"]
+|===
+| Situation | This Step
+| No workload running | Application is deployed and reachable
+| Replica count unknown | Fixed at 2 replicas, visible in the Deployment spec
+|===
+
+== What This Does NOT Solve (Yet)
+
+[cols="2,3",options="header"]
+|===
+| Remaining Problem | Addressed In
+| Replicas do not change under load | xref:02-cpu-trigger.adoc[Step 02 - CPU Trigger]
+|===
+
+== Official Documentation
+
+* link:https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/nodes/automatically-scaling-pods-with-the-custom-metrics-autoscaler-operator[Custom Metrics Autoscaler Operator - OpenShift 4.17+]
+
+== Alternatives Considered
+
+[cols="2,4",options="header"]
+|===
+| Approach | Notes
+| Use a Quarkus or Go demo app | Any container image works for this baseline step. `myboot` is a well-known Red Hat demo image available on quay.io with no registry authentication required.
+| Keep `replicas: 1` for the baseline | Two replicas make the scaling behavior more visible: you can watch the count increase from 2 and return to 2 after load drops.
+|===
+
+'''
+
+== Reset
+
+Delete the baseline resources in reverse creation order. The `--ignore-not-found` flag makes these commands safe to run even if a resource was never created.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc delete route {app-name} -n {namespace} --ignore-not-found --context {crc-context}
+oc delete service {app-name} -n {namespace} --ignore-not-found --context {crc-context}
+oc delete deployment {app-name} -n {namespace} --ignore-not-found --context {crc-context}
+----

@@ -1,0 +1,17 @@
+# service.yaml
+# Purpose: Exposes the myboot application within the cluster on port 8080.
+apiVersion: v1
+kind: Service
+metadata:
+  name: myboot
+  namespace: cma-demo
+  labels:
+    app: myboot
+    app.kubernetes.io/part-of: cma-demo
+spec:
+  selector:
+    app: myboot
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

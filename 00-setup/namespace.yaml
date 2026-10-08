@@ -1,0 +1,8 @@
+# namespace.yaml
+# Purpose: Creates the cma-demo namespace for all workshop resources.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cma-demo
+  labels:
+    app.kubernetes.io/part-of: cma-demo

@@ -1,0 +1,35 @@
+# scaledobject.yaml
+# Purpose: ScaledObject with two triggers - a Prometheus trigger (inherited from step 03)
+# and a cron trigger that pre-scales to 3 replicas during business hours (Mon-Fri 9-17 UTC).
+# The cron trigger sets a floor of 3 replicas during business hours regardless of load.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: myboot-cron-scaler
+  namespace: cma-demo
+spec:
+  scaleTargetRef:
+    name: myboot
+  minReplicaCount: 1
+  maxReplicaCount: 5
+  cooldownPeriod: 60
+  pollingInterval: 30
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: https://thanos-querier.openshift-monitoring.svc.cluster.local:9091
+        namespace: cma-demo
+        metricName: myboot_cpu_millicores
+        threshold: "50"
+        query: >-
+          sum(rate(container_cpu_usage_seconds_total{namespace="cma-demo",container="myboot"}[2m])) * 1000
+        authModes: "bearer"
+        unsafeSsl: "true"
+      authenticationRef:
+        name: keda-trigger-auth-prometheus
+    - type: cron
+      metadata:
+        timezone: UTC
+        start: "0 9 * * 1-5"
+        end: "0 17 * * 1-5"
+        desiredReplicas: "3"

@@ -1,0 +1,19 @@
+# route.yaml
+# Purpose: Creates an OpenShift Route to expose myboot externally for HTTP testing.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: myboot
+  namespace: cma-demo
+  labels:
+    app: myboot
+    app.kubernetes.io/part-of: cma-demo
+spec:
+  to:
+    kind: Service
+    name: myboot
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

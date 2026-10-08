@@ -1,0 +1,28 @@
+# scaledobject.yaml
+# Purpose: ScaledObject that scales myboot based on HTTP request rate as reported
+# by thanos-querier. Scales up when the per-replica request rate exceeds 5 rps.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: myboot-prometheus-scaler
+  namespace: cma-demo
+spec:
+  scaleTargetRef:
+    name: myboot
+  minReplicaCount: 1
+  maxReplicaCount: 5
+  cooldownPeriod: 60
+  pollingInterval: 30
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: https://thanos-querier.openshift-monitoring.svc.cluster.local:9091
+        namespace: cma-demo
+        metricName: myboot_cpu_millicores
+        threshold: "50"
+        query: >-
+          sum(rate(container_cpu_usage_seconds_total{namespace="cma-demo",container="myboot"}[2m])) * 1000
+        authModes: "bearer"
+        unsafeSsl: "true"
+      authenticationRef:
+        name: keda-trigger-auth-prometheus

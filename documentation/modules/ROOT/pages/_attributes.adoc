@@ -1,0 +1,13 @@
+:experimental:
+:source-highlighter: highlightjs
+:title: Custom Metrics Autoscaler on OpenShift Local
+:crc-context: crc
+:namespace: cma-demo
+:app-name: myboot
+:app-image: quay.io/rhdevelopers/myboot:v2
+:ocp-version: 4.21+
+:cma-version: 2.x
+:keda-api: keda.sh/v1alpha1
+:cma-operator-ns: openshift-keda
+:monitoring-ns: openshift-monitoring
+:thanos-server: https://thanos-querier.openshift-monitoring.svc.cluster.local:9091

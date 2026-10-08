@@ -1,0 +1,201 @@
+= Step 02 - CPU Trigger
+include::_attributes.adoc[]
+
+This step replaces the fixed replica count from step 01 with a `ScaledObject` that scales the `{app-name}` deployment between 1 and 5 replicas when average CPU utilization crosses 50% of the requested limit.
+
+== Prerequisites
+
+* xref:01-baseline.adoc[Step 01] complete: `{app-name}` deployment running with 2 replicas
+* `oc` CLI authenticated as cluster-admin
+* Custom Metrics Autoscaler operator installed and `KedaController` running in `{cma-operator-ns}`
+
+== How It Works
+
+The `ScaledObject` resource links KEDA to a Deployment and defines when to scale it. For the CPU trigger, KEDA reads the standard Kubernetes CPU metrics API and computes average utilization across all running pods. When that average exceeds the configured threshold for two consecutive polling intervals, KEDA adds a replica.
+
+The `cooldownPeriod` (30 seconds here) is the minimum time KEDA waits after the last scale event before scaling back down. This prevents rapid replica oscillation when load is uneven.
+
+NOTE: The Kubernetes HPA adds a default 5-minute scale-down stabilization window on top of the KEDA cooldown. After the load Job finishes, expect the replica count to return to the minimum about 5 minutes later, not 30 seconds.
+
+[#create-scaledobject]
+== Steps to Apply
+
+=== 1. Remove the fixed replica count
+
+*What:* Remove the `replicas` field from the Deployment so that KEDA fully controls the count.
+
+*Why:* If both the Deployment and a `ScaledObject` specify a replica count, the Deployment spec wins on the next rollout and overrides KEDA. Removing it lets KEDA own the field.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc patch deployment {app-name} -n {namespace} \
+  --type=json \
+  -p='[{"op":"remove","path":"/spec/replicas"}]' \
+  --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+deployment.apps/myboot patched
+----
+
+.Verify: replicas field is absent
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get deployment {app-name} -n {namespace} -o jsonpath='{.spec.replicas}' --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+(empty output)
+----
+====
+
+'''
+
+=== 2. Create the CPU-based ScaledObject
+
+*What:* Apply the `ScaledObject` manifest that triggers scaling at 50% CPU utilization.
+
+*Why:* The `ScaledObject` links the KEDA scaler to the `{app-name}` Deployment. KEDA creates and manages an HPA under the hood, so you interact with `ScaledObject` rather than editing the HPA directly.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc apply -f 02-cpu-trigger/scaledobject.yaml --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+scaledobject.keda.sh/myboot-cpu-scaler created
+----
+
+.Verify: ScaledObject is ready and HPA was created
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get scaledobject myboot-cpu-scaler -n {namespace} --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+NAME               SCALETARGETKIND      SCALETARGETNAME   MIN   MAX   TRIGGERS   READY   ACTIVE   FALLBACK   AGE
+myboot-cpu-scaler  apps/v1.Deployment   myboot            1     5     cpu        True    False    False      15s
+----
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get hpa -n {namespace} --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+NAME                        REFERENCE          TARGETS   MINPODS   MAXPODS   REPLICAS   AGE
+keda-hpa-myboot-cpu-scaler  Deployment/myboot  2%/50%    1         5         1          20s
+----
+====
+
+'''
+
+[#generate-load]
+=== 3. Generate CPU load and observe scaling
+
+icon:clock[] ~7 minutes total (Job runs 120 s; scale-up fires in ~30-45 s; scale-down takes ~5 min after load stops)
+
+*What:* Run the load-generating Job, which sends a continuous stream of HTTP requests to `{app-name}` from inside the cluster.
+
+*Why:* The Job runs inside the cluster to avoid external network latency and produce more consistent load than `curl` from a laptop. After the Job finishes, CPU drops below the threshold and KEDA scales back down.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc apply -f 02-cpu-trigger/load-job.yaml --context {crc-context}
+----
+
+In a second terminal, watch the replica count:
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+watch oc get pods -n {namespace} -l app={app-name} --context {crc-context}
+----
+
+NOTE: On CRC, the single-node VM may not produce as sharp a CPU spike as a multi-node cluster. If replicas do not increase, check the HPA target CPU with `oc describe hpa keda-hpa-myboot-cpu-scaler -n {namespace} --context {crc-context}` and confirm current utilization is above 50%.
+
+.Verify: replicas increased while the Job was running
+[%collapsible]
+====
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc get scaledobject myboot-cpu-scaler -n {namespace} --context {crc-context}
+----
+
+[.console-output]
+[source,bash]
+----
+NAME               ...   READY   ACTIVE   FALLBACK   AGE
+myboot-cpu-scaler  ...   True    True     False      3m
+----
+
+`ACTIVE: True` means KEDA has at least one active trigger and has scaled above the minimum.
+====
+
+'''
+
+== What This Solves (Compared to Step 01)
+
+[cols="2,3",options="header"]
+|===
+| Problem from Step 01 | How This Step Solves It
+| Replicas fixed at 2 regardless of load | KEDA scales between 1 and 5 replicas based on CPU utilization
+| No path to scale-to-zero | `minReplicaCount: 1` keeps one pod running; changing it to `0` enables scale-to-zero
+|===
+
+== What This Does NOT Solve (Yet)
+
+[cols="2,3",options="header"]
+|===
+| Remaining Problem | Addressed In
+| CPU utilization is a proxy for load, not a direct measure of application demand | xref:03-prometheus-trigger.adoc[Step 03 - Prometheus Trigger]
+| Scaling does not reflect the application's HTTP request rate | xref:03-prometheus-trigger.adoc[Step 03 - Prometheus Trigger]
+|===
+
+== Official Documentation
+
+* link:https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/nodes/automatically-scaling-pods-with-the-custom-metrics-autoscaler-operator#nodes-cma-autoscaling-custom-trigger-cpu_nodes-cma-autoscaling-custom[CPU trigger reference - OpenShift 4.17+]
+
+== Alternatives Considered
+
+[cols="2,4",options="header"]
+|===
+| Approach | Notes
+| Use a plain Kubernetes HPA | A plain HPA works for CPU and memory. The `ScaledObject` wraps HPA and adds multi-trigger support, external metrics, and scale-to-zero, so this workshop uses it from the start.
+| Set `minReplicaCount: 0` | Scale-to-zero removes all pods when idle. For a demo with a Route, this causes a cold-start delay on the next request. `minReplicaCount: 1` avoids that without changing the scaling logic.
+|===
+
+'''
+
+== Reset
+
+The KEDA-managed HPA is deleted automatically when the ScaledObject is deleted. After resetting, restore the replica count on the Deployment so step 01 is back to its baseline state.
+
+[.console-input]
+[source,bash,subs="+macros,+attributes"]
+----
+oc delete scaledobject myboot-cpu-scaler -n {namespace} --ignore-not-found --context {crc-context}
+oc delete job myboot-load -n {namespace} --ignore-not-found --context {crc-context}
+oc scale deployment {app-name} --replicas=2 -n {namespace} --context {crc-context}
+----

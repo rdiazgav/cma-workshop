@@ -1,0 +1,54 @@
+# deployment.yaml
+# Purpose: Deploys the myboot Spring Boot application with 2 fixed replicas.
+# No HPA or ScaledObject - replicas are controlled only by this Deployment spec.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myboot
+  namespace: cma-demo
+  labels:
+    app: myboot
+    app.kubernetes.io/part-of: cma-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: myboot
+  template:
+    metadata:
+      labels:
+        app: myboot
+        app.kubernetes.io/part-of: cma-demo
+    spec:
+      containers:
+        - name: myboot
+          image: quay.io/rhdevelopers/myboot:v2
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 768Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 3

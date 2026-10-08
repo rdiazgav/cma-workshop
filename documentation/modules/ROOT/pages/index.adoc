@@ -1,0 +1,52 @@
+= Custom Metrics Autoscaler on OpenShift Local
+:page-layout: home
+:!sectids:
+include::_attributes.adoc[]
+
+[.text-center.strong]
+== Scale on what actually matters
+
+The Custom Metrics Autoscaler (CMA) extends OpenShift horizontal pod autoscaling beyond CPU and memory. This workshop runs four progressive steps on a single OpenShift Local (CRC) cluster, starting from a fixed-replica deployment and adding CPU, Prometheus, and cron-based scaling triggers.
+
+[.tiles.browse]
+== Browse Modules
+
+[.tile]
+.xref:00-setup.adoc[Cluster Setup]
+* xref:00-setup.adoc#prerequisites[Prerequisites]
+* xref:00-setup.adoc#crc-config[Configure CRC memory and CPUs]
+* xref:00-setup.adoc#cluster-monitoring[Enable cluster monitoring]
+* xref:00-setup.adoc#install-cma[Install CMA operator]
+
+[.tile]
+.xref:01-baseline.adoc[Step 01 - Baseline: Fixed Replicas]
+* xref:01-baseline.adoc#deploy-app[Deploy the demo application]
+* xref:01-baseline.adoc#verify-baseline[Verify the deployment]
+
+[.tile]
+.xref:02-cpu-trigger.adoc[Step 02 - CPU Trigger]
+* xref:02-cpu-trigger.adoc#create-scaledobject[Create a CPU-based ScaledObject]
+* xref:02-cpu-trigger.adoc#generate-load[Generate load and watch scaling]
+
+[.tile]
+.xref:03-prometheus-trigger.adoc[Step 03 - Prometheus Trigger]
+* xref:03-prometheus-trigger.adoc#setup-sa[Set up ServiceAccount for thanos-querier]
+* xref:03-prometheus-trigger.adoc#triggerauth[Create TriggerAuthentication]
+* xref:03-prometheus-trigger.adoc#scaledobject-prometheus[Scale on HTTP request rate]
+
+[.tile]
+.xref:04-cron-trigger.adoc[Step 04 - Cron Trigger and Pause]
+* xref:04-cron-trigger.adoc#scaledobject-cron[Scale by schedule for business hours]
+* xref:04-cron-trigger.adoc#pause-annotation[Pause autoscaling with an annotation]
+
+== Environment
+
+[cols="2,3",options="header"]
+|===
+| Item | Value
+| OpenShift version | {ocp-version}
+| CMA version | {cma-version}
+| Cluster context | `{crc-context}`
+| Demo namespace | `{namespace}`
+| Demo application | `{app-name}`
+|===
