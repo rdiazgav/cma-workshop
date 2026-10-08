@@ -259,6 +259,9 @@ myboot-prometheus-scaler   ...   True    True     False      3m
 
 '''
 
+.TriggerAuthentications list in cma-demo showing keda-trigger-auth-prometheus referencing the bearer token secret
+image::03-triggerauth-list.png[OpenShift console TriggerAuthentications list showing keda-trigger-auth-prometheus with the keda-trigger-auth-prometheus-secret referenced]
+
 == What This Solves (Compared to Step 02)
 
 [cols="2,3",options="header"]

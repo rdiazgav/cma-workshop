@@ -112,6 +112,9 @@ I am fine, thank you
 ----
 ====
 
+.Workloads > Deployments in the cma-demo namespace showing myboot with 2 of 2 pods
+image::01-deployments-baseline.png[OpenShift console Deployments list showing myboot deployment with 2 of 2 pods running in cma-demo namespace]
+
 '''
 
 == What This Solves

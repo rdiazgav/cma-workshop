@@ -155,6 +155,9 @@ myboot-cpu-scaler  ...   True    True     False      3m
 
 '''
 
+.ScaledObjects list in cma-demo showing myboot-cpu-scaler with Ready=True
+image::02-scaledobject-cpu.png[OpenShift console ScaledObjects list showing myboot-cpu-scaler targeting the myboot Deployment with min 1 max 5 replicas]
+
 == What This Solves (Compared to Step 01)
 
 [cols="2,3",options="header"]

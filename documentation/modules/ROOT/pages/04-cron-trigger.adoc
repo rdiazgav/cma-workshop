@@ -204,6 +204,9 @@ myboot-cron-scaler ...   True    True     False      False
 
 '''
 
+.myboot-cron-scaler detail showing both prometheus and cron triggers active
+image::04-scaledobject-cron-detail.png[OpenShift console ScaledObject detail for myboot-cron-scaler showing Triggers prometheus comma cron with Ready and Active both True]
+
 == What This Solves (Compared to Step 03)
 
 [cols="2,3",options="header"]
