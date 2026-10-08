@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<url>
+<loc>https://rdiazgav.github.io/cma-workshop/cma-workshop/00-setup.html</loc>
+<lastmod>2026-10-08T20:07:25.496Z</lastmod>
+</url>
+<url>
+<loc>https://rdiazgav.github.io/cma-workshop/cma-workshop/01-baseline.html</loc>
+<lastmod>2026-10-08T20:07:25.496Z</lastmod>
+</url>
+<url>
+<loc>https://rdiazgav.github.io/cma-workshop/cma-workshop/02-cpu-trigger.html</loc>
+<lastmod>2026-10-08T20:07:25.496Z</lastmod>
+</url>
+<url>
+<loc>https://rdiazgav.github.io/cma-workshop/cma-workshop/03-prometheus-trigger.html</loc>
+<lastmod>2026-10-08T20:07:25.496Z</lastmod>
+</url>
+<url>
+<loc>https://rdiazgav.github.io/cma-workshop/cma-workshop/04-cron-trigger.html</loc>
+<lastmod>2026-10-08T20:07:25.496Z</lastmod>
+</url>
+<url>
+<loc>https://rdiazgav.github.io/cma-workshop/cma-workshop/index.html</loc>
+<lastmod>2026-10-08T20:07:25.496Z</lastmod>
+</url>
+</urlset>

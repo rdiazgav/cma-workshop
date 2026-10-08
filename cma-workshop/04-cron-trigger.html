@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Custom Metrics Autoscaler on OpenShift Local :: Custom Metrics Autoscaler on OpenShift Local</title>
+    <link rel="canonical" href="https://rdiazgav.github.io/cma-workshop/cma-workshop/04-cron-trigger.html">
+    <link rel="prev" href="03-prometheus-trigger.html">
+    <meta name="generator" content="Antora 2.3.4">
+    <link rel="stylesheet" href="../_/css/site.css">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item" href="https://developers.redhat.com" target="_blank"><img src="../_/img/RHDLogo.svg" height="40px" alt="Red Hat Developer Program"></a>
+      <a class="navbar-item" style="font-size: 24px; color: white" href="https://rdiazgav.github.io/cma-workshop">Custom Metrics Autoscaler on OpenShift Local</a>
+      <button class="navbar-burger" data-target="topbar-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="https://developers.redhat.com/ebooks/" target="_blank">Books</a>
+        <a class="navbar-item" href="https://developers.redhat.com/cheatsheets/" target="_blank">Cheat Sheets</a>
+        <a class="navbar-item" href="https://developers.redhat.com/events/" target="_blank">Upcoming Events</a>
+        <div class="navbar-item has-dropdown is-hoverable">
+          <a class="navbar-link" href="#">More Tutorials</a>
+          <div class="navbar-dropdown">
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/kubernetes-tutorial/" target="_blank">Kubernetes</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/istio-tutorial/" target="_blank">Istio</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/quarkus-tutorial/" target="_blank">Quarkus</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/knative-tutorial/" target="_blank">Knative</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/tekton-tutorial/" target="_blank">Tekton</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="cma-workshop" data-version="master">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <h3 class="title"><a href="index.html"></a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="00-setup.html">Cluster Setup</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#prerequisites">Prerequisites</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#crc-config">Configure CRC</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#cluster-monitoring">Enable Cluster Monitoring</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#install-cma">Install Custom Metrics Autoscaler</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#export-variables">Export Workshop Variables</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="01-baseline.html">Step 01 - Baseline: Fixed Replicas</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-baseline.html#deploy-app">Deploy the Application</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-baseline.html#verify-baseline">Verify the Deployment</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="02-cpu-trigger.html">Step 02 - CPU Trigger</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-cpu-trigger.html#create-scaledobject">Create ScaledObject</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-cpu-trigger.html#generate-load">Generate CPU Load</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="03-prometheus-trigger.html">Step 03 - Prometheus Trigger</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-prometheus-trigger.html#setup-sa">Set Up Service Account</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-prometheus-trigger.html#triggerauth">Create TriggerAuthentication</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-prometheus-trigger.html#servicemonitor">Create ServiceMonitor</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-prometheus-trigger.html#scaledobject-prometheus">Create ScaledObject</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item is-current-page" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="04-cron-trigger.html">Step 04 - Cron Trigger and Pause</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#scaledobject-cron">Create ScaledObject with Cron</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#pause-annotation">Pause with Annotation</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="index.html">Custom Metrics Autoscaler on OpenShift Local</a></li>
+    <li><a href="04-cron-trigger.html">Step 04 - Cron Trigger and Pause</a></li>
+  </ul>
+</nav>
+  <div class="edit-this-page"><a href="https://github.com/rdiazgav/cma-workshop/edit/master/documentation/modules/ROOT/pages/04-cron-trigger.adoc">Edit this Page</a></div>
+  </div>
+  <div class="content">
+<article class="doc">
+<h1 class="page">Custom Metrics Autoscaler on OpenShift Local</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>This step adds a cron trigger to the existing Prometheus-based <code>ScaledObject</code>, so that <code>myboot</code> pre-scales to a minimum of 3 replicas during business hours (Monday through Friday, 09:00-17:00 UTC) regardless of current CPU load. It also covers the pause annotation, which lets you suspend autoscaling for a maintenance window without deleting the <code>ScaledObject</code>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites"><a class="anchor" href="#_prerequisites"></a>Prerequisites</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="03-prometheus-trigger.html" class="page">Step 03</a> complete: <code>myboot-prometheus-scaler</code> ScaledObject and <code>TriggerAuthentication</code> present</p>
+</li>
+<li>
+<p><code>oc</code> CLI authenticated as cluster-admin</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_how_it_works"><a class="anchor" href="#_how_it_works"></a>How It Works</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>When multiple triggers are defined on a <code>ScaledObject</code>, KEDA takes the maximum desired replica count across all active triggers. During business hours, the cron trigger sets a floor of 3 replicas. If the Prometheus trigger simultaneously computes a higher value - say 4 replicas - KEDA uses 4. Outside business hours the cron trigger is inactive and only the Prometheus trigger drives scaling, so the deployment can scale down to <code>minReplicaCount: 1</code> during idle periods.</p>
+</div>
+<div class="paragraph">
+<p>The pause annotation (<code>autoscaling.keda.sh/paused-replicas</code>) sets a fixed replica count and disables all scaling logic until the annotation is removed. This is the standard way to freeze a deployment during a deployment window or incident investigation.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="scaledobject-cron"><a class="anchor" href="#scaledobject-cron"></a>Steps to Apply</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_1_replace_the_prometheus_scaledobject_with_the_combined_cron_prometheus_scaledobject"><a class="anchor" href="#_1_replace_the_prometheus_scaledobject_with_the_combined_cron_prometheus_scaledobject"></a>1. Replace the Prometheus ScaledObject with the combined cron + Prometheus ScaledObject</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Delete the step 03 ScaledObject and apply the new one that includes both a cron trigger and the Prometheus trigger.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> KEDA does not allow two <code>ScaledObject</code> resources to manage the same Deployment. The combined ScaledObject replaces the Prometheus-only one from step 03.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc delete scaledobject myboot-prometheus-scaler -n cma-demo --ignore-not-found --context crc
+oc apply -f 04-cron-trigger/scaledobject.yaml --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">scaledobject.keda.sh/myboot-prometheus-scaler deleted
+scaledobject.keda.sh/myboot-cron-scaler created</code></pre>
+</div>
+</div>
+<div class="exampleblock">
+<div class="title">Example 1. Verify: ScaledObject shows two triggers</div>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get scaledobject myboot-cron-scaler -n cma-demo --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME               SCALETARGETKIND      SCALETARGETNAME   MIN   MAX   TRIGGERS            READY   ACTIVE
+myboot-cron-scaler apps/v1.Deployment   myboot            1     5     prometheus, cron    True    False</code></pre>
+</div>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc describe scaledobject myboot-cron-scaler -n cma-demo --context crc | grep -A 5 Triggers</code></pre>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="_2_observe_the_cron_trigger_during_business_hours"><a class="anchor" href="#_2_observe_the_cron_trigger_during_business_hours"></a>2. Observe the cron trigger during business hours</h3>
+<div class="paragraph">
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~5 minutes (pods start immediately; Prometheus metric may push briefly to 5 replicas during JVM startup, then settles to 3 as CPU drops)</p>
+</div>
+<div class="paragraph">
+<p><strong>What:</strong> Check the current replica count and confirm it is at least 3 during a business-hours window (Mon-Fri 09:00-17:00 UTC).</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The cron trigger fires silently - there is no event to wait for. The best way to confirm it is working is to check the replica count at a time when the cron window is active.</p>
+</div>
+<div class="admonitionblock tip">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-tip" title="Tip"></i>
+</td>
+<td class="content">
+If your local time is outside 09:00-17:00 UTC on a weekday, adjust the cron expression in <code>04-cron-trigger/scaledobject.yaml</code> to a window that includes right now. Change <code>start</code> and <code>end</code> to a time 2-3 minutes in the future, apply the manifest, and watch the replica count.
+</td>
+</tr>
+</table>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get deployment myboot -n cma-demo --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME     READY   UP-TO-DATE   AVAILABLE   AGE
+myboot   3/3     3            3           20m</code></pre>
+</div>
+</div>
+<div class="exampleblock">
+<div class="title">Example 2. Verify: KEDA reports the cron trigger as active</div>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc describe scaledobject myboot-cron-scaler -n cma-demo --context crc | grep -A 20 "Status:"</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">Status:
+  Conditions:
+    Message:  Scaling is performed because triggers are active
+    Reason:   ScalerActive
+    Status:   True
+    Type:     Active
+  Triggers Activity:
+    s0-prometheus:
+      Is Active:  true
+    s1-cron-UTC-09xx1-5-017xx1-5:
+      Is Active:   true</code></pre>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="pause-annotation"><a class="anchor" href="#pause-annotation"></a>3. Pause autoscaling with an annotation</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Add the <code>autoscaling.keda.sh/paused-replicas</code> annotation to the <code>ScaledObject</code> to drain the deployment to zero replicas and freeze it.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> During a maintenance window or planned downtime, you want full control over the replica count without KEDA reacting to CPU or cron schedules. Setting the value to <code>0</code> drains all pods immediately. Any non-negative integer works; KEDA ignores all triggers while the annotation is present.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc annotate scaledobject myboot-cron-scaler \
+  autoscaling.keda.sh/paused-replicas="0" \
+  -n cma-demo \
+  --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">scaledobject.keda.sh/myboot-cron-scaler annotated</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Wait about 15 seconds for the deployment to drain:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n cma-demo -l app=myboot --context crc</code></pre>
+</div>
+</div>
+<div class="exampleblock">
+<div class="title">Example 3. Verify: all pods removed and ScaledObject shows PAUSED=True</div>
+<div class="content">
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">No resources found in cma-demo namespace.</code></pre>
+</div>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get scaledobject myboot-cron-scaler -n cma-demo --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME               ...   READY   ACTIVE   FALLBACK   PAUSED
+myboot-cron-scaler ...   True    True     False      True</code></pre>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="_4_resume_autoscaling"><a class="anchor" href="#_4_resume_autoscaling"></a>4. Resume autoscaling</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Remove the pause annotation to let KEDA resume normal scaling.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The annotation persists until explicitly removed. Removing it gives control back to the configured triggers immediately.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc annotate scaledobject myboot-cron-scaler \
+  autoscaling.keda.sh/paused-replicas- \
+  -n cma-demo \
+  --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">scaledobject.keda.sh/myboot-cron-scaler annotated</code></pre>
+</div>
+</div>
+<div class="exampleblock">
+<div class="title">Example 4. Verify: ScaledObject is no longer paused</div>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get scaledobject myboot-cron-scaler -n cma-demo --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME               ...   READY   ACTIVE   FALLBACK   PAUSED
+myboot-cron-scaler ...   True    True     False      False</code></pre>
+</div>
+</div>
+</div>
+</div>
+<hr>
+<div class="imageblock">
+<div class="content">
+<img src="_images/04-scaledobject-cron-detail.png" alt="OpenShift console ScaledObject detail for myboot-cron-scaler showing Triggers prometheus comma cron with Ready and Active both True">
+</div>
+<div class="title">Figure 1. myboot-cron-scaler detail showing both prometheus and cron triggers active</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_this_solves_compared_to_step_03"><a class="anchor" href="#_what_this_solves_compared_to_step_03"></a>What This Solves (Compared to Step 03)</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Problem from Step 03</th>
+<th class="tableblock halign-left valign-top">How This Step Solves It</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Scaling is fully reactive: replicas only increase after load arrives</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The cron trigger pre-scales to 3 replicas before the business-hours traffic window starts</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">No way to pause scaling without deleting the ScaledObject</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The <code>paused-replicas</code> annotation freezes the deployment at a fixed count without removing any configuration</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_this_does_not_solve_yet"><a class="anchor" href="#_what_this_does_not_solve_yet"></a>What This Does NOT Solve (Yet)</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Remaining Problem</th>
+<th class="tableblock halign-left valign-top">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Cron schedules are hardcoded in the manifest</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">To change the window, edit the manifest and reapply. There is no dynamic schedule API in KEDA today.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Scale-to-zero during off-hours</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Set <code>minReplicaCount: 0</code> and remove the cron trigger, or add a second cron trigger with <code>desiredReplicas: "0"</code> for off-hours. Be aware of cold-start latency when traffic resumes.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_official_documentation"><a class="anchor" href="#_official_documentation"></a>Official Documentation</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/nodes/automatically-scaling-pods-with-the-custom-metrics-autoscaler-operator#nodes-cma-autoscaling-custom-trigger-cron_nodes-cma-autoscaling-custom">Cron trigger reference - OpenShift 4.17+</a></p>
+</li>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/nodes/automatically-scaling-pods-with-the-custom-metrics-autoscaler-operator#nodes-cma-autoscaling-pause_nodes-cma-autoscaling-custom">Pausing autoscaling - OpenShift 4.17+</a></p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_alternatives_considered"><a class="anchor" href="#_alternatives_considered"></a>Alternatives Considered</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 66.6667%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Approach</th>
+<th class="tableblock halign-left valign-top">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Use a separate ScaledObject for cron only</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Two ScaledObjects on the same Deployment conflict. Combining triggers in one ScaledObject is the correct approach.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Scale to zero outside business hours with a second cron trigger</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Valid for batch workloads with no latency requirement. For an HTTP-serving app with a Route, the cold start makes this less useful without a warming mechanism.</p></td>
+</tr>
+</tbody>
+</table>
+<hr>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_reset"><a class="anchor" href="#_reset"></a>Reset</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Delete the combined ScaledObject. Resources from step 03 (TriggerAuthentication, Role, RoleBinding, ServiceAccount) remain in place after this reset.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc delete scaledobject myboot-cron-scaler -n cma-demo --ignore-not-found --context crc
+oc scale deployment myboot --replicas=2 -n cma-demo --context crc
+oc wait --for=condition=available deployment/myboot -n cma-demo \
+  --timeout=120s --context crc</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>To tear down the full workshop, run the reset commands from each step in reverse order, then delete the namespace:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc delete namespace cma-demo --context crc
+oc delete rolebinding keda-operator-token-creator -n cma-demo --ignore-not-found --context crc
+oc delete role keda-operator-token-creator -n cma-demo --ignore-not-found --context crc
+oc delete rolebinding keda-trigger-sa-thanos-metrics-reader -n cma-demo --ignore-not-found --context crc
+oc delete role thanos-metrics-reader -n cma-demo --ignore-not-found --context crc</code></pre>
+</div>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="03-prometheus-trigger.html">Step 03 - Prometheus Trigger</a></span>
+</nav>
+</article>
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <a class="rhd-logo" href="https://developers.redhat.com" target="_blank"></div>
+</footer>
+<script src="../_/js/vendor/clipboard.js"></script>
+<script src="../_/js/site.js"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+  </body>
+</html>

@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Custom Metrics Autoscaler on OpenShift Local :: Custom Metrics Autoscaler on OpenShift Local</title>
+    <link rel="canonical" href="https://rdiazgav.github.io/cma-workshop/cma-workshop/00-setup.html">
+    <link rel="prev" href="index.html">
+    <link rel="next" href="01-baseline.html">
+    <meta name="generator" content="Antora 2.3.4">
+    <link rel="stylesheet" href="../_/css/site.css">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item" href="https://developers.redhat.com" target="_blank"><img src="../_/img/RHDLogo.svg" height="40px" alt="Red Hat Developer Program"></a>
+      <a class="navbar-item" style="font-size: 24px; color: white" href="https://rdiazgav.github.io/cma-workshop">Custom Metrics Autoscaler on OpenShift Local</a>
+      <button class="navbar-burger" data-target="topbar-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="https://developers.redhat.com/ebooks/" target="_blank">Books</a>
+        <a class="navbar-item" href="https://developers.redhat.com/cheatsheets/" target="_blank">Cheat Sheets</a>
+        <a class="navbar-item" href="https://developers.redhat.com/events/" target="_blank">Upcoming Events</a>
+        <div class="navbar-item has-dropdown is-hoverable">
+          <a class="navbar-link" href="#">More Tutorials</a>
+          <div class="navbar-dropdown">
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/kubernetes-tutorial/" target="_blank">Kubernetes</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/istio-tutorial/" target="_blank">Istio</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/quarkus-tutorial/" target="_blank">Quarkus</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/knative-tutorial/" target="_blank">Knative</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/tekton-tutorial/" target="_blank">Tekton</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="cma-workshop" data-version="master">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <h3 class="title"><a href="index.html"></a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="index.html">Overview</a>
+  </li>
+  <li class="nav-item is-current-page" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="00-setup.html">Cluster Setup</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#prerequisites">Prerequisites</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#crc-config">Configure CRC</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#cluster-monitoring">Enable Cluster Monitoring</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#install-cma">Install Custom Metrics Autoscaler</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#export-variables">Export Workshop Variables</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="01-baseline.html">Step 01 - Baseline: Fixed Replicas</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-baseline.html#deploy-app">Deploy the Application</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-baseline.html#verify-baseline">Verify the Deployment</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="02-cpu-trigger.html">Step 02 - CPU Trigger</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-cpu-trigger.html#create-scaledobject">Create ScaledObject</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-cpu-trigger.html#generate-load">Generate CPU Load</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="03-prometheus-trigger.html">Step 03 - Prometheus Trigger</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-prometheus-trigger.html#setup-sa">Set Up Service Account</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-prometheus-trigger.html#triggerauth">Create TriggerAuthentication</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-prometheus-trigger.html#servicemonitor">Create ServiceMonitor</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="03-prometheus-trigger.html#scaledobject-prometheus">Create ScaledObject</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="04-cron-trigger.html">Step 04 - Cron Trigger and Pause</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="04-cron-trigger.html#scaledobject-cron">Create ScaledObject with Cron</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="04-cron-trigger.html#pause-annotation">Pause with Annotation</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="index.html">Custom Metrics Autoscaler on OpenShift Local</a></li>
+    <li><a href="00-setup.html">Cluster Setup</a></li>
+  </ul>
+</nav>
+  <div class="edit-this-page"><a href="https://github.com/rdiazgav/cma-workshop/edit/master/documentation/modules/ROOT/pages/00-setup.adoc">Edit this Page</a></div>
+  </div>
+  <div class="content">
+<article class="doc">
+<h1 class="page">Custom Metrics Autoscaler on OpenShift Local</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>This page walks through starting OpenShift Local (CRC), enabling cluster monitoring, installing the Custom Metrics Autoscaler operator, and creating the workshop namespace. All four workshop steps depend on this setup being complete.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="prerequisites"><a class="anchor" href="#prerequisites"></a>Prerequisites</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://console.redhat.com/openshift/create/local">OpenShift Local (CRC)</a> 2.30+ installed and licensed</p>
+</li>
+<li>
+<p><code>oc</code> CLI in your PATH</p>
+</li>
+<li>
+<p><code>git</code> CLI in your PATH</p>
+</li>
+<li>
+<p>A host machine with at least 16 GB of RAM (CRC will use 14 GB)</p>
+</li>
+<li>
+<p>A host machine with at least 6 CPU cores (CRC will use 6)</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="crc-config"><a class="anchor" href="#crc-config"></a>1. Configure and start CRC</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~5 minutes (CRC first start downloads a ~3 GB bundle)</p>
+</div>
+<div class="paragraph">
+<p><strong>What:</strong> Set CRC memory and CPU limits, then start the cluster.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The default CRC configuration (9 GB RAM, 4 CPUs) does not leave enough headroom for the OpenShift monitoring stack. Cluster monitoring alone needs 4-6 GB on top of the base cluster.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">crc config set memory 14336
+crc config set cpus 6
+crc start</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">INFO Checking if running as non-root
+INFO Checking if crc-admin-helper executable is cached
+...
+INFO Starting OpenShift cluster... [waiting 3m]
+INFO
+INFO To access the cluster, first set up your environment by following 'crc oc-env' instructions.
+INFO Then you can access it by running 'oc login -u developer https://api.crc.testing:6443'.
+INFO To login as an admin, run 'oc login -u kubeadmin https://api.crc.testing:6443'.
+INFO
+INFO You can now run 'crc console' and use these credentials to access the OpenShift web console.</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+The kubeadmin password is printed in the <code>crc start</code> output. Copy it into your <code>myenv.sh</code> file before proceeding.
+</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+These steps were validated on CRC with 14336 MB RAM and 6 CPUs (<code>crc config set memory 14336 &amp;&amp; crc config set cpus 6</code>). If the CRC API server becomes unresponsive (TLS handshake timeout errors), wait 60 seconds and retry. Run <code>crc status</code> to confirm the VM is still Running. If the VM has stopped, run <code>crc start</code> again. The CRC API can time out briefly when the VM is under memory pressure or after a period of idle.
+</td>
+</tr>
+</table>
+</div>
+<div class="exampleblock">
+<div class="title">Example 1. Verify: CRC is running</div>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">crc status</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">CRC VM:          Running
+OpenShift:       Running (v4.21.14)
+RAM Usage:       ...
+Disk Usage:      ...
+Cache Usage:     ...</code></pre>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+</div>
+<div class="sect1">
+<h2 id="login"><a class="anchor" href="#login"></a>2. Log in and rename the context</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>What:</strong> Authenticate to the CRC cluster and rename the auto-generated context to <code>crc</code>.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> OpenShift generates a long context name such as <code>default/api-crc-testing:6443/kubeadmin</code>. Renaming it to <code>crc</code> keeps every <code>oc</code> command in this workshop consistent.</p>
+</div>
+<div class="paragraph">
+<p>Create a file called <code>myenv.sh</code> in the workshop root (it is gitignored) and fill in the kubeadmin password from the <code>crc start</code> output:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">export CRC_API_URL="https://api.crc.testing:6443"
+export CRC_PASSWORD="&lt;kubeadmin-password&gt;"
+export NAMESPACE="cma-demo"
+
+oc config delete-context crc 2&gt;/dev/null || true
+oc login "$CRC_API_URL" --username kubeadmin --password "$CRC_PASSWORD" --insecure-skip-tls-verify=true
+oc config rename-context "$(oc config current-context)" crc</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Then source it:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">source myenv.sh</code></pre>
+</div>
+</div>
+<div class="exampleblock">
+<div class="title">Example 2. Verify: context is named crc</div>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc config get-contexts --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">CURRENT   NAME   CLUSTER               AUTHINFO                           NAMESPACE
+*         crc    api-crc-testing:6443  kubeadmin/api-crc-testing:6443</code></pre>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+</div>
+<div class="sect1">
+<h2 id="cluster-monitoring"><a class="anchor" href="#cluster-monitoring"></a>3. Enable cluster monitoring and user workload monitoring</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~3 minutes (Prometheus and Alertmanager pods take about 2-3 minutes to reach Running)</p>
+</div>
+<div class="paragraph">
+<p><strong>What:</strong> Create the <code>cluster-monitoring-config</code> ConfigMap in the <code>openshift-monitoring</code> namespace with <code>enableUserWorkload: true</code>.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> CRC ships with cluster monitoring disabled by default to save memory. The Prometheus trigger in step 03 queries thanos-querier, which only runs when cluster monitoring is active. Setting <code>enableUserWorkload: true</code> in the same ConfigMap also starts the user workload Prometheus instance that scrapes application metrics via <code>ServiceMonitor</code> resources.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc apply -f - --context crc &lt;&lt;'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-monitoring-config
+  namespace: openshift-monitoring
+data:
+  config.yaml: |
+    enableUserWorkload: true
+EOF</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">configmap/cluster-monitoring-config created</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Wait for the monitoring pods to be ready:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc wait pod \
+  -l app.kubernetes.io/name=prometheus \
+  -n openshift-monitoring \
+  --for=condition=Ready \
+  --timeout=300s \
+  --context crc</code></pre>
+</div>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+If the wait times out, the host machine may not have enough free RAM. Check <code>crc status</code> and confirm at least 2 GB is free after CRC starts. You can also watch pod status with <code>oc get pods -n openshift-monitoring -w --context crc</code>.
+</td>
+</tr>
+</table>
+</div>
+<div class="exampleblock">
+<div class="title">Example 3. Verify: thanos-querier is running</div>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n openshift-monitoring -l app.kubernetes.io/name=thanos-query --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME                              READY   STATUS    RESTARTS   AGE
+thanos-querier-75f678d47d-abc12   6/6     Running   0          2m</code></pre>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+</div>
+<div class="sect1">
+<h2 id="install-cma"><a class="anchor" href="#install-cma"></a>4. Install the Custom Metrics Autoscaler operator</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~2 minutes (Subscription created in ~10s, CSV ready in ~90s)</p>
+</div>
+<div class="paragraph">
+<p><strong>What:</strong> Install the Custom Metrics Autoscaler operator from OperatorHub into the <code>openshift-keda</code> namespace, then create a <code>KedaController</code> instance to activate it.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The CMA operator ships the KEDA controller and admission webhook. Without a <code>KedaController</code> CR, the operator installs but does not start the scaler.</p>
+</div>
+<div class="sect2">
+<h3 id="_4a_create_the_operator_namespace_and_install_the_subscription"><a class="anchor" href="#_4a_create_the_operator_namespace_and_install_the_subscription"></a>4a. Create the operator namespace and install the Subscription</h3>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc apply -f - --context crc &lt;&lt;'EOF'
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-keda
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-keda
+  namespace: openshift-keda
+spec:
+  targetNamespaces:
+    - openshift-keda
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: openshift-custom-metrics-autoscaler-operator
+  namespace: openshift-keda
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: openshift-custom-metrics-autoscaler-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+EOF</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Wait for the CSV to succeed:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc wait csv \
+  -n openshift-keda \
+  -l operators.coreos.com/openshift-custom-metrics-autoscaler-operator.openshift-keda \
+  --for=jsonpath='{.status.phase}'=Succeeded \
+  --timeout=180s \
+  --context crc</code></pre>
+</div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_4b_create_the_kedacontroller_instance"><a class="anchor" href="#_4b_create_the_kedacontroller_instance"></a>4b. Create the KedaController instance</h3>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc apply -f - --context crc &lt;&lt;'EOF'
+apiVersion: keda.sh/v1alpha1
+kind: KedaController
+metadata:
+  name: keda
+  namespace: openshift-keda
+spec:
+  watchNamespace: ""
+  operator:
+    logLevel: info
+    logEncoder: console
+  metricsServer:
+    logLevel: "0"
+  serviceAccount: {}
+EOF</code></pre>
+</div>
+</div>
+<div class="exampleblock">
+<div class="title">Example 4. Verify: KEDA controller pods are running</div>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n openshift-keda --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME                                                  READY   STATUS    RESTARTS   AGE
+keda-admission-webhooks-xxxx                          1/1     Running   0          90s
+keda-metrics-apiserver-xxxx                           1/1     Running   0          90s
+keda-operator-xxxx                                    1/1     Running   0          90s
+custom-metrics-autoscaler-operator-xxxx               1/1     Running   0          2m</code></pre>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="create-namespace"><a class="anchor" href="#create-namespace"></a>5. Create the workshop namespace</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>What:</strong> Apply the namespace manifest for <code>cma-demo</code>.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> All workshop resources land in this namespace. A dedicated namespace makes cleanup straightforward and avoids interfering with other workloads on the cluster.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc apply -f 00-setup/namespace.yaml --context crc</code></pre>
+</div>
+</div>
+<div class="exampleblock">
+<div class="title">Example 5. Verify: namespace exists</div>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get namespace cma-demo --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME       STATUS   AGE
+cma-demo   Active   10s</code></pre>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+</div>
+<div class="sect1">
+<h2 id="clone-repo"><a class="anchor" href="#clone-repo"></a>6. Clone the workshop repository</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>What:</strong> Clone the repository to get the YAML manifests for each step.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> Each step references YAML files in the corresponding step directory. The <code>oc apply -f</code> commands throughout the workshop expect these files to be present locally.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">git clone <a href="https://github.com/rdiazgav/cma-workshop.git" class="bare">https://github.com/rdiazgav/cma-workshop.git</a>
+cd cma-workshop</code></pre>
+</div>
+</div>
+<hr>
+</div>
+</div>
+<div class="sect1">
+<h2 id="export-variables"><a class="anchor" href="#export-variables"></a>7. Export workshop variables</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><strong>What:</strong> Source <code>myenv.sh</code> to set the environment variables used throughout the workshop.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The <code>myenv.sh</code> file holds the cluster credentials and context name. Sourcing it once ensures every <code>oc</code> command in subsequent steps uses the <code>crc</code> context without requiring a login prompt.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">source myenv.sh</code></pre>
+</div>
+</div>
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 25%;">
+<col style="width: 25%;">
+<col style="width: 50%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Variable</th>
+<th class="tableblock halign-left valign-top">Used in</th>
+<th class="tableblock halign-left valign-top">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>CRC_API_URL</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>myenv.sh</code> login</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">API endpoint for the CRC cluster</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>CRC_PASSWORD</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>myenv.sh</code> login</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">kubeadmin password from <code>crc start</code> output</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><code>NAMESPACE</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">reference in commands</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Target namespace (<code>cma-demo</code>)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="index.html">Overview</a></span>
+  <span class="next"><a href="01-baseline.html">Step 01 - Baseline: Fixed Replicas</a></span>
+</nav>
+</article>
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <a class="rhd-logo" href="https://developers.redhat.com" target="_blank"></div>
+</footer>
+<script src="../_/js/vendor/clipboard.js"></script>
+<script src="../_/js/site.js"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+  </body>
+</html>

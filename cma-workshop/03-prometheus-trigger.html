@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Custom Metrics Autoscaler on OpenShift Local :: Custom Metrics Autoscaler on OpenShift Local</title>
+    <link rel="canonical" href="https://rdiazgav.github.io/cma-workshop/cma-workshop/03-prometheus-trigger.html">
+    <link rel="prev" href="02-cpu-trigger.html">
+    <link rel="next" href="04-cron-trigger.html">
+    <meta name="generator" content="Antora 2.3.4">
+    <link rel="stylesheet" href="../_/css/site.css">
+  </head>
+  <body class="article">
+<header class="header">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <a class="navbar-item" href="https://developers.redhat.com" target="_blank"><img src="../_/img/RHDLogo.svg" height="40px" alt="Red Hat Developer Program"></a>
+      <a class="navbar-item" style="font-size: 24px; color: white" href="https://rdiazgav.github.io/cma-workshop">Custom Metrics Autoscaler on OpenShift Local</a>
+      <button class="navbar-burger" data-target="topbar-nav">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+    <div id="topbar-nav" class="navbar-menu">
+      <div class="navbar-end">
+        <a class="navbar-item" href="https://developers.redhat.com/ebooks/" target="_blank">Books</a>
+        <a class="navbar-item" href="https://developers.redhat.com/cheatsheets/" target="_blank">Cheat Sheets</a>
+        <a class="navbar-item" href="https://developers.redhat.com/events/" target="_blank">Upcoming Events</a>
+        <div class="navbar-item has-dropdown is-hoverable">
+          <a class="navbar-link" href="#">More Tutorials</a>
+          <div class="navbar-dropdown">
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/kubernetes-tutorial/" target="_blank">Kubernetes</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/istio-tutorial/" target="_blank">Istio</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/quarkus-tutorial/" target="_blank">Quarkus</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/knative-tutorial/" target="_blank">Knative</a>
+            <a class="navbar-item" href="https://redhat-developer-demos.github.io/tekton-tutorial/" target="_blank">Tekton</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+</header>
+<div class="body">
+<div class="nav-container" data-component="cma-workshop" data-version="master">
+  <aside class="nav">
+    <div class="panels">
+<div class="nav-panel-menu is-active" data-panel="menu">
+  <nav class="nav-menu">
+    <h3 class="title"><a href="index.html"></a></h3>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="0">
+<ul class="nav-list">
+  <li class="nav-item" data-depth="1">
+    <a class="nav-link" href="index.html">Overview</a>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="00-setup.html">Cluster Setup</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#prerequisites">Prerequisites</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#crc-config">Configure CRC</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#cluster-monitoring">Enable Cluster Monitoring</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#install-cma">Install Custom Metrics Autoscaler</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="00-setup.html#export-variables">Export Workshop Variables</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="01-baseline.html">Step 01 - Baseline: Fixed Replicas</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-baseline.html#deploy-app">Deploy the Application</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="01-baseline.html#verify-baseline">Verify the Deployment</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="02-cpu-trigger.html">Step 02 - CPU Trigger</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-cpu-trigger.html#create-scaledobject">Create ScaledObject</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="02-cpu-trigger.html#generate-load">Generate CPU Load</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item is-current-page" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="03-prometheus-trigger.html">Step 03 - Prometheus Trigger</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#setup-sa">Set Up Service Account</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#triggerauth">Create TriggerAuthentication</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#servicemonitor">Create ServiceMonitor</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="#scaledobject-prometheus">Create ScaledObject</a>
+  </li>
+</ul>
+  </li>
+  <li class="nav-item" data-depth="1">
+    <button class="nav-item-toggle"></button>
+    <a class="nav-link" href="04-cron-trigger.html">Step 04 - Cron Trigger and Pause</a>
+<ul class="nav-list">
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="04-cron-trigger.html#scaledobject-cron">Create ScaledObject with Cron</a>
+  </li>
+  <li class="nav-item" data-depth="2">
+    <a class="nav-link" href="04-cron-trigger.html#pause-annotation">Pause with Annotation</a>
+  </li>
+</ul>
+  </li>
+</ul>
+  </li>
+</ul>
+  </nav>
+</div>
+    </div>
+  </aside>
+</div>
+<main class="article">
+<div class="toolbar" role="navigation">
+<button class="nav-toggle"></button>
+  <a href="index.html" class="home-link"></a>
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+  <ul>
+    <li><a href="index.html">Custom Metrics Autoscaler on OpenShift Local</a></li>
+    <li><a href="03-prometheus-trigger.html">Step 03 - Prometheus Trigger</a></li>
+  </ul>
+</nav>
+  <div class="edit-this-page"><a href="https://github.com/rdiazgav/cma-workshop/edit/master/documentation/modules/ROOT/pages/03-prometheus-trigger.adoc">Edit this Page</a></div>
+  </div>
+  <div class="content">
+<article class="doc">
+<h1 class="page">Custom Metrics Autoscaler on OpenShift Local</h1>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>This step replaces the CPU trigger from step 02 with a Prometheus trigger that queries CPU usage directly from thanos-querier using cAdvisor metrics already available in the cluster monitoring stack. No additional exporters or ServiceMonitors are required.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_prerequisites"><a class="anchor" href="#_prerequisites"></a>Prerequisites</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="02-cpu-trigger.html" class="page">Step 02</a> reset: <code>myboot-cpu-scaler</code> ScaledObject deleted</p>
+</li>
+<li>
+<p>Cluster monitoring and user workload monitoring enabled (<a href="00-setup.html#cluster-monitoring" class="page">step 3 of setup</a>)</p>
+</li>
+<li>
+<p><code>oc</code> CLI authenticated as cluster-admin</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_how_it_works"><a class="anchor" href="#_how_it_works"></a>How It Works</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Thanos-querier is the OpenShift cluster monitoring component that aggregates metrics from both the platform Prometheus and the user workload Prometheus. KEDA queries thanos-querier on its tenancy port (9092) using a PromQL expression and a bearer token tied to a ServiceAccount. The tenancy port enforces namespace isolation: it checks whether the bearer token&#8217;s ServiceAccount can <code>get pods</code> in the target namespace before allowing the query. This means the <code>thanos-metrics-reader</code> Role lives in <code>cma-demo</code> (not <code>openshift-monitoring</code>) and grants only pod-read and metrics-server access to that namespace - no cluster-wide metric read.</p>
+</div>
+<div class="paragraph">
+<p>cAdvisor already tracks CPU time for every container in the cluster and exposes it as <code>container_cpu_usage_seconds_total</code>. No <code>ServiceMonitor</code> or application changes are needed. The PromQL query computes a 2-minute rate and multiplies by 1000 to express the result in millicores. KEDA adds a replica whenever the total CPU usage across all <code>myboot</code> pods exceeds 50 millicores.</p>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+OpenShift CRC scrapes cAdvisor every 60 seconds. The Prometheus <code>rate()</code> function requires at least two data points within the window to return a value. A <code>[1m]</code> window contains only one point at most and returns empty, which KEDA treats as 0 (no scale-up). A <code>[2m]</code> window reliably captures two scrape points and is the minimum window for CRC.
+</td>
+</tr>
+</table>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+<code>myboot</code> is a Spring Boot 1.5 application that does not expose a Prometheus metrics endpoint. Using cAdvisor CPU metrics lets the workshop demonstrate the full authentication and PromQL path without requiring a custom exporter.
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="setup-sa"><a class="anchor" href="#setup-sa"></a>Steps to Apply</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="_1_create_the_serviceaccount_and_grant_monitoring_access"><a class="anchor" href="#_1_create_the_serviceaccount_and_grant_monitoring_access"></a>1. Create the ServiceAccount and grant monitoring access</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Create a ServiceAccount in <code>cma-demo</code>, create a <code>thanos-metrics-reader</code> Role in <code>cma-demo</code>, and bind the ServiceAccount to it via a RoleBinding.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> Thanos-querier&#8217;s tenancy port (9092) enforces namespace isolation by verifying the bearer token can <code>get pods</code> in the target namespace. Placing the Role in <code>cma-demo</code> means the ServiceAccount has no access to metrics outside its own namespace - least-privilege compared to a Role in <code>openshift-monitoring</code> or a ClusterRoleBinding.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc apply -f 03-prometheus-trigger/serviceaccount.yaml --context crc
+oc apply -f 03-prometheus-trigger/role.yaml --context crc
+oc apply -f 03-prometheus-trigger/rolebinding.yaml --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">serviceaccount/keda-trigger-sa created
+role.rbac.authorization.k8s.io/thanos-metrics-reader created
+rolebinding.rbac.authorization.k8s.io/keda-trigger-sa-thanos-metrics-reader created</code></pre>
+</div>
+</div>
+<div class="exampleblock">
+<div class="title">Example 1. Verify: RoleBinding is in place</div>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get rolebinding keda-trigger-sa-thanos-metrics-reader -n cma-demo --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME                                    ROLE                         AGE
+keda-trigger-sa-thanos-metrics-reader   Role/thanos-metrics-reader   10s</code></pre>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="triggerauth"><a class="anchor" href="#triggerauth"></a>2. Grant keda-operator token permissions and create the TriggerAuthentication</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Grant the <code>keda-operator</code> ServiceAccount permission to request bound tokens for <code>keda-trigger-sa</code>, then create the <code>TriggerAuthentication</code> that uses <code>boundServiceAccountToken</code>.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> With <code>boundServiceAccountToken</code>, KEDA requests a fresh, short-lived projected token directly from the Kubernetes TokenRequest API on each metric poll. No manually generated token or Secret is needed. The keda-operator SA needs <code>create</code> on <code>serviceaccounts/token</code> in this namespace to make that API call.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc apply -f 03-prometheus-trigger/keda-token-role.yaml --context crc
+oc apply -f 03-prometheus-trigger/triggerauth.yaml --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">role.rbac.authorization.k8s.io/keda-operator-token-creator created
+rolebinding.rbac.authorization.k8s.io/keda-operator-token-creator created
+triggerauthentication.keda.sh/keda-trigger-auth-prometheus created</code></pre>
+</div>
+</div>
+<div class="exampleblock">
+<div class="title">Example 2. Verify: TriggerAuthentication uses a bound token (no Secret reference)</div>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get triggerauthentication keda-trigger-auth-prometheus -n cma-demo --context crc -o yaml</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: keda-trigger-auth-prometheus
+  namespace: cma-demo
+spec:
+  boundServiceAccountToken:
+    - audiences:
+        - https://kubernetes.default.svc
+      parameter: bearerToken
+      serviceAccountName: keda-trigger-sa</code></pre>
+</div>
+</div>
+</div>
+</div>
+<div class="admonitionblock important">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-important" title="Important"></i>
+</td>
+<td class="content">
+<code>boundServiceAccountToken</code> requires the <code>keda-operator</code> ServiceAccount in <code>openshift-keda</code> to have <code>create</code> permission on <code>serviceaccounts/token</code> in the target namespace. Without it, KEDA logs <code>bearer token=&lt;empty&gt; is required when bearer auth is enabled</code> on every metric poll and no scaling occurs. The <code>keda-token-role.yaml</code> file applied above grants this permission.
+</td>
+</tr>
+</table>
+</div>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="verify-metric"><a class="anchor" href="#verify-metric"></a>3. Verify the cAdvisor metric is available in thanos-querier</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Run a one-shot pod to query thanos-querier and confirm the CPU metric for <code>myboot</code> returns data.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> Confirming the metric before applying the <code>ScaledObject</code> makes it easier to tell whether a later problem is in the query or in the KEDA configuration.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">CHECK_TOKEN=$(oc create token keda-trigger-sa \
+  -n cma-demo --context crc)
+oc run metric-check --rm -i --restart=Never \
+  --image=registry.access.redhat.com/ubi9/ubi-minimal:latest \
+  -n cma-demo --context crc \
+  -- curl -sk \
+  -H "Authorization: Bearer $CHECK_TOKEN" \
+  'https://thanos-querier.openshift-monitoring.svc.cluster.local:9092/api/v1/query?query=sum(rate(container_cpu_usage_seconds_total%7Bnamespace%3D%22cma-demo%22%2Ccontainer%3D%22myboot%22%7D%5B2m%5D))*1000&amp;namespace=cma-demo'</code></pre>
+</div>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+<code>CHECK_TOKEN</code> is a short-lived token generated only to run this verification curl. KEDA itself requests fresh tokens automatically via <code>boundServiceAccountToken</code> and never needs this variable.
+</td>
+</tr>
+</table>
+</div>
+<div class="exampleblock">
+<div class="title">Example 3. Verify: thanos-querier returns a numeric result</div>
+<div class="content">
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">{"status":"success","data":{"resultType":"vector","result":[{"metric":{},"value":[1728397200,"7.4"]}]}}</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>A numeric value such as <code>7.4</code> (millicores at idle) confirms the metric path is working. An empty <code>result: []</code> means the pods are too new - wait 2 minutes for cAdvisor to accumulate a full rate window and retry.</p>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="scaledobject-prometheus"><a class="anchor" href="#scaledobject-prometheus"></a>4. Create the Prometheus-based ScaledObject</h3>
+<div class="paragraph">
+<p><strong>What:</strong> Delete the CPU ScaledObject if still present, then apply the Prometheus-based one.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> Two <code>ScaledObject</code> resources targeting the same Deployment each try to manage their own HPA, which causes conflicts. Delete the CPU scaler before creating the Prometheus scaler.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc delete scaledobject myboot-cpu-scaler -n cma-demo --ignore-not-found --context crc
+oc apply -f 03-prometheus-trigger/scaledobject.yaml --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">scaledobject.keda.sh/myboot-cpu-scaler deleted
+scaledobject.keda.sh/myboot-prometheus-scaler created</code></pre>
+</div>
+</div>
+<div class="exampleblock">
+<div class="title">Example 4. Verify: ScaledObject is ready</div>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get scaledobject myboot-prometheus-scaler -n cma-demo --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME                       SCALETARGETKIND      SCALETARGETNAME   MIN   MAX   TRIGGERS     READY   ACTIVE
+myboot-prometheus-scaler   apps/v1.Deployment   myboot            1     5     prometheus   True    False</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>If <code>READY</code> shows <code>False</code>, check the ScaledObject conditions for error messages:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc describe scaledobject myboot-prometheus-scaler -n cma-demo --context crc | grep -A 10 Conditions</code></pre>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div class="sect2">
+<h3 id="_5_generate_cpu_load_and_observe_scaling"><a class="anchor" href="#_5_generate_cpu_load_and_observe_scaling"></a>5. Generate CPU load and observe scaling</h3>
+<div class="paragraph">
+<p><span class="icon"><i class="fa fa-clock"></i></span> ~5 minutes total (Job runs 120 s; metric crosses threshold ~82 s in; pods ready ~144 s; scale-down completes ~144 s after load stops as the 2-minute rate window drains and the 60-second stabilization window elapses)</p>
+</div>
+<div class="paragraph">
+<p><strong>What:</strong> Run the load-generating Job to push total CPU usage above the 50-millicore threshold.</p>
+</div>
+<div class="paragraph">
+<p><strong>Why:</strong> The PromQL query uses a 2-minute rate window. Once the window fills with high-CPU samples (~60-90 s into the job), KEDA fires within the next polling interval. Scale-down begins once the rate window drains back below threshold (~120 s after load stops), then the 60-second stabilization window elapses.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc apply -f 02-cpu-trigger/load-job.yaml --context crc</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Watch scaling events in a second terminal:</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">watch oc get pods -n cma-demo -l app=myboot --context crc</code></pre>
+</div>
+</div>
+<div class="exampleblock">
+<div class="title">Example 5. Verify: replica count increased</div>
+<div class="content">
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get scaledobject myboot-prometheus-scaler -n cma-demo --context crc</code></pre>
+</div>
+</div>
+<div class="listingblock console-output">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">NAME                       ...   READY   ACTIVE   FALLBACK   AGE
+myboot-prometheus-scaler   ...   True    True     False      3m</code></pre>
+</div>
+</div>
+</div>
+</div>
+<hr>
+<div class="imageblock">
+<div class="content">
+<img src="_images/03-triggerauth-list.png" alt="OpenShift console TriggerAuthentications list showing keda-trigger-auth-prometheus with the keda-trigger-auth-prometheus-secret referenced">
+</div>
+<div class="title">Figure 1. TriggerAuthentications list in cma-demo showing keda-trigger-auth-prometheus referencing the bearer token secret</div>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_this_solves_compared_to_step_02"><a class="anchor" href="#_what_this_solves_compared_to_step_02"></a>What This Solves (Compared to Step 02)</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Problem from Step 02</th>
+<th class="tableblock halign-left valign-top">How This Step Solves It</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Scaling is driven by a built-in CPU trigger that only reads Kubernetes metrics</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The Prometheus trigger can evaluate any PromQL expression - CPU, memory, queue depth, or custom business metrics</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">No authentication to external metric sources</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">The TriggerAuthentication pattern works for any token-protected endpoint, not just thanos-querier</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_what_this_does_not_solve_yet"><a class="anchor" href="#_what_this_does_not_solve_yet"></a>What This Does NOT Solve (Yet)</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 40%;">
+<col style="width: 60%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Remaining Problem</th>
+<th class="tableblock halign-left valign-top">Addressed In</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Scaling is reactive: replicas only change after load arrives</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="04-cron-trigger.html" class="page">Step 04 - Cron Trigger</a> adds pre-scheduled scaling for predictable load patterns</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">No way to pause autoscaling for maintenance</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="04-cron-trigger.html" class="page">Step 04 - Cron Trigger</a> covers the pause annotation</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_official_documentation"><a class="anchor" href="#_official_documentation"></a>Official Documentation</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/nodes/automatically-scaling-pods-with-the-custom-metrics-autoscaler-operator#nodes-cma-autoscaling-custom-trigger-prometheus_nodes-cma-autoscaling-custom">Prometheus trigger reference - OpenShift 4.17+</a></p>
+</li>
+<li>
+<p><a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/nodes/automatically-scaling-pods-with-the-custom-metrics-autoscaler-operator#nodes-cma-autoscaling-custom-authentication">TriggerAuthentication reference - OpenShift 4.17+</a></p>
+</li>
+<li>
+<p><a href="https://docs.openshift.com/container-platform/4.17/monitoring/monitoring-overview.html">OpenShift monitoring overview</a></p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_alternatives_considered"><a class="anchor" href="#_alternatives_considered"></a>Alternatives Considered</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 33.3333%;">
+<col style="width: 66.6667%;">
+</colgroup>
+<thead>
+<tr>
+<th class="tableblock halign-left valign-top">Approach</th>
+<th class="tableblock halign-left valign-top">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Deploy a standalone Prometheus instance</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Works but requires managing a separate installation. Querying thanos-querier reuses the monitoring stack CRC already runs.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Use <code>secretTargetRef</code> with a manually generated token</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">A ServiceAccount token generated with <code>oc create token --duration=8h</code> can be stored in a Secret and referenced via <code>TriggerAuthentication.spec.secretTargetRef</code>. This works on all CMA versions but requires regenerating the token before each session. <code>boundServiceAccountToken</code> is preferred because KEDA rotates the token automatically. Note: <code>boundServiceAccountToken</code> requires a <code>keda-operator-token-creator</code> Role in the target namespace granting <code>create</code> on <code>serviceaccounts/token</code> to the <code>keda-operator</code> SA in <code>openshift-keda</code>; without it, the bearer token remains empty.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Use thanos-querier port 9091 with <code>prometheuses/api</code> Role in <code>openshift-monitoring</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Port 9091 authenticates via a Role that grants <code>create/get/update</code> on <code>prometheuses/api</code> in <code>openshift-monitoring</code>. This allows querying any namespace&#8217;s metrics - broader than needed. Port 9092 (this workshop) limits the SA to its own namespace via the tenancy enforcement.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Use a ClusterRoleBinding with <code>cluster-monitoring-view</code></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Grants the SA cluster-wide monitoring-view access across all namespaces. The namespaced <code>thanos-metrics-reader</code> Role in <code>cma-demo</code> used here is narrower.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Use <code>rate(&#8230;&#8203;[1m])</code> for faster scale-up detection</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">CRC scrapes cAdvisor every 60 seconds. Prometheus <code>rate()</code> requires at least two data points inside the window; a <code>[1m]</code> window captures only one point and returns empty. KEDA treats an empty result as 0, so scale-up never fires. Use <code>[2m]</code> as the minimum window on CRC.</p></td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Use <code>unsafeSsl: "false"</code> with a mounted CA cert</p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Mounting the CA cert is the production-safe approach. The workshop uses <code>unsafeSsl: "true"</code> to keep the setup shorter. See the <a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.17/html/nodes/automatically-scaling-pods-with-the-custom-metrics-autoscaler-operator">CMA documentation</a> for the full CA cert setup.</p></td>
+</tr>
+</tbody>
+</table>
+<hr>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_reset"><a class="anchor" href="#_reset"></a>Reset</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Delete resources in reverse order. All resources from this step live in <code>cma-demo</code>.</p>
+</div>
+<div class="listingblock console-input">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc delete scaledobject myboot-prometheus-scaler -n cma-demo --ignore-not-found --context crc
+oc delete triggerauthentication keda-trigger-auth-prometheus -n cma-demo --ignore-not-found --context crc
+oc delete rolebinding keda-operator-token-creator -n cma-demo --ignore-not-found --context crc
+oc delete role keda-operator-token-creator -n cma-demo --ignore-not-found --context crc
+oc delete rolebinding keda-trigger-sa-thanos-metrics-reader -n cma-demo --ignore-not-found --context crc
+oc delete role thanos-metrics-reader -n cma-demo --ignore-not-found --context crc
+oc delete serviceaccount keda-trigger-sa -n cma-demo --ignore-not-found --context crc
+oc delete job myboot-load -n cma-demo --ignore-not-found --context crc
+oc wait --for=condition=available deployment/myboot -n cma-demo \
+  --timeout=120s --context crc</code></pre>
+</div>
+</div>
+</div>
+</div>
+<nav class="pagination">
+  <span class="prev"><a href="02-cpu-trigger.html">Step 02 - CPU Trigger</a></span>
+  <span class="next"><a href="04-cron-trigger.html">Step 04 - Cron Trigger and Pause</a></span>
+</nav>
+</article>
+<aside class="toc sidebar" data-title="Contents" data-levels="2">
+  <div class="toc-menu"></div>
+</aside>
+  </div>
+</main>
+</div>
+<footer class="footer">
+  <a class="rhd-logo" href="https://developers.redhat.com" target="_blank"></div>
+</footer>
+<script src="../_/js/vendor/clipboard.js"></script>
+<script src="../_/js/site.js"></script>
+<script async src="../_/js/vendor/highlight.js"></script>
+  </body>
+</html>
