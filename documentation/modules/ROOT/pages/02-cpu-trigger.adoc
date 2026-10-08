@@ -53,8 +53,10 @@ oc get deployment {app-name} -n {namespace} -o jsonpath='{.spec.replicas}' --con
 [.console-output]
 [source,bash]
 ----
-(empty output)
+1
 ----
+
+NOTE: Kubernetes defaults `spec.replicas` to `1` when the field is removed. The important outcome is that the HPA created by KEDA will own the replica count going forward - not the Deployment spec.
 ====
 
 '''

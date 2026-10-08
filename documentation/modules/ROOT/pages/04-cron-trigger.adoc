@@ -99,11 +99,15 @@ oc describe scaledobject myboot-cron-scaler -n {namespace} --context {crc-contex
 ----
 Status:
   Conditions:
-    ...
-    Message:               Cron trigger is active
-    Reason:                CronTriggerActive
-    Status:                True
-    Type:                  Active
+    Message:  Scaling is performed because triggers are active
+    Reason:   ScalerActive
+    Status:   True
+    Type:     Active
+  Triggers Activity:
+    s0-prometheus:
+      Is Active:  true
+    s1-cron-UTC-09xx1-5-017xx1-5:
+      Is Active:   true
 ----
 ====
 
