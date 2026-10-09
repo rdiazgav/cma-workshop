@@ -6,7 +6,7 @@
     <title>Custom Metrics Autoscaler on OpenShift Local :: Custom Metrics Autoscaler on OpenShift Local</title>
     <link rel="canonical" href="https://rdiazgav.github.io/cma-workshop/cma-workshop/04-cron-trigger.html">
     <link rel="prev" href="03-prometheus-trigger.html">
-    <meta name="generator" content="Antora 2.3.4">
+    <meta name="generator" content="Antora 3.2.1">
     <link rel="stylesheet" href="../_/css/site.css">
   </head>
   <body class="article">
@@ -164,7 +164,7 @@
 <div class="ulist">
 <ul>
 <li>
-<p><a href="03-prometheus-trigger.html" class="page">Step 03</a> complete: <code>myboot-prometheus-scaler</code> ScaledObject and <code>TriggerAuthentication</code> present</p>
+<p><a href="03-prometheus-trigger.html" class="xref page">Step 03</a> complete: <code>myboot-prometheus-scaler</code> ScaledObject and <code>TriggerAuthentication</code> present</p>
 </li>
 <li>
 <p><code>oc</code> CLI authenticated as cluster-admin</p>
@@ -207,8 +207,8 @@ oc apply -f 04-cron-trigger/scaledobject.yaml --context crc</code></pre>
 scaledobject.keda.sh/myboot-cron-scaler created</code></pre>
 </div>
 </div>
-<div class="exampleblock">
-<div class="title">Example 1. Verify: ScaledObject shows two triggers</div>
+<details>
+<summary class="title">Verify: ScaledObject shows two triggers</summary>
 <div class="content">
 <div class="listingblock console-input">
 <div class="content">
@@ -227,7 +227,7 @@ myboot-cron-scaler apps/v1.Deployment   myboot            1     5     prometheus
 </div>
 </div>
 </div>
-</div>
+</details>
 <hr>
 </div>
 <div class="sect2">
@@ -264,8 +264,8 @@ If your local time is outside 09:00-17:00 UTC on a weekday, adjust the cron expr
 myboot   3/3     3            3           20m</code></pre>
 </div>
 </div>
-<div class="exampleblock">
-<div class="title">Example 2. Verify: KEDA reports the cron trigger as active</div>
+<details>
+<summary class="title">Verify: KEDA reports the cron trigger as active</summary>
 <div class="content">
 <div class="listingblock console-input">
 <div class="content">
@@ -288,7 +288,7 @@ myboot   3/3     3            3           20m</code></pre>
 </div>
 </div>
 </div>
-</div>
+</details>
 <hr>
 </div>
 <div class="sect2">
@@ -320,8 +320,8 @@ myboot   3/3     3            3           20m</code></pre>
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc get pods -n cma-demo -l app=myboot --context crc</code></pre>
 </div>
 </div>
-<div class="exampleblock">
-<div class="title">Example 3. Verify: all pods removed and ScaledObject shows PAUSED=True</div>
+<details>
+<summary class="title">Verify: all pods removed and ScaledObject shows PAUSED=True</summary>
 <div class="content">
 <div class="listingblock console-output">
 <div class="content">
@@ -340,7 +340,7 @@ myboot-cron-scaler ...   True    True     False      True</code></pre>
 </div>
 </div>
 </div>
-</div>
+</details>
 <hr>
 </div>
 <div class="sect2">
@@ -364,8 +364,8 @@ myboot-cron-scaler ...   True    True     False      True</code></pre>
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">scaledobject.keda.sh/myboot-cron-scaler annotated</code></pre>
 </div>
 </div>
-<div class="exampleblock">
-<div class="title">Example 4. Verify: ScaledObject is no longer paused</div>
+<details>
+<summary class="title">Verify: ScaledObject is no longer paused</summary>
 <div class="content">
 <div class="listingblock console-input">
 <div class="content">
@@ -379,7 +379,7 @@ myboot-cron-scaler ...   True    True     False      False</code></pre>
 </div>
 </div>
 </div>
-</div>
+</details>
 <hr>
 <div class="imageblock">
 <div class="content">

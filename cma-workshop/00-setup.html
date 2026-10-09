@@ -7,7 +7,7 @@
     <link rel="canonical" href="https://rdiazgav.github.io/cma-workshop/cma-workshop/00-setup.html">
     <link rel="prev" href="index.html">
     <link rel="next" href="01-baseline.html">
-    <meta name="generator" content="Antora 2.3.4">
+    <meta name="generator" content="Antora 3.2.1">
     <link rel="stylesheet" href="../_/css/site.css">
   </head>
   <body class="article">
@@ -240,8 +240,8 @@ These steps were validated on CRC with 14336 MB RAM and 6 CPUs (<code>crc config
 </tr>
 </table>
 </div>
-<div class="exampleblock">
-<div class="title">Example 1. Verify: CRC is running</div>
+<details>
+<summary class="title">Verify: CRC is running</summary>
 <div class="content">
 <div class="listingblock console-input">
 <div class="content">
@@ -258,7 +258,7 @@ Cache Usage:     ...</code></pre>
 </div>
 </div>
 </div>
-</div>
+</details>
 <hr>
 </div>
 </div>
@@ -293,8 +293,8 @@ oc config rename-context "$(oc config current-context)" crc</code></pre>
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">source myenv.sh</code></pre>
 </div>
 </div>
-<div class="exampleblock">
-<div class="title">Example 2. Verify: context is named crc</div>
+<details>
+<summary class="title">Verify: context is named crc</summary>
 <div class="content">
 <div class="listingblock console-input">
 <div class="content">
@@ -308,7 +308,7 @@ oc config rename-context "$(oc config current-context)" crc</code></pre>
 </div>
 </div>
 </div>
-</div>
+</details>
 <hr>
 </div>
 </div>
@@ -368,8 +368,8 @@ If the wait times out, the host machine may not have enough free RAM. Check <cod
 </tr>
 </table>
 </div>
-<div class="exampleblock">
-<div class="title">Example 3. Verify: thanos-querier is running</div>
+<details>
+<summary class="title">Verify: thanos-querier is running</summary>
 <div class="content">
 <div class="listingblock console-input">
 <div class="content">
@@ -383,7 +383,7 @@ thanos-querier-75f678d47d-abc12   6/6     Running   0          2m</code></pre>
 </div>
 </div>
 </div>
-</div>
+</details>
 <hr>
 </div>
 </div>
@@ -467,8 +467,8 @@ spec:
 EOF</code></pre>
 </div>
 </div>
-<div class="exampleblock">
-<div class="title">Example 4. Verify: KEDA controller pods are running</div>
+<details>
+<summary class="title">Verify: KEDA controller pods are running</summary>
 <div class="content">
 <div class="listingblock console-input">
 <div class="content">
@@ -485,7 +485,7 @@ custom-metrics-autoscaler-operator-xxxx               1/1     Running   0       
 </div>
 </div>
 </div>
-</div>
+</details>
 <hr>
 </div>
 </div>
@@ -504,8 +504,8 @@ custom-metrics-autoscaler-operator-xxxx               1/1     Running   0       
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">oc apply -f 00-setup/namespace.yaml --context crc</code></pre>
 </div>
 </div>
-<div class="exampleblock">
-<div class="title">Example 5. Verify: namespace exists</div>
+<details>
+<summary class="title">Verify: namespace exists</summary>
 <div class="content">
 <div class="listingblock console-input">
 <div class="content">
@@ -519,7 +519,7 @@ cma-demo   Active   10s</code></pre>
 </div>
 </div>
 </div>
-</div>
+</details>
 <hr>
 </div>
 </div>

@@ -7,7 +7,7 @@
     <link rel="canonical" href="https://rdiazgav.github.io/cma-workshop/cma-workshop/01-baseline.html">
     <link rel="prev" href="00-setup.html">
     <link rel="next" href="02-cpu-trigger.html">
-    <meta name="generator" content="Antora 2.3.4">
+    <meta name="generator" content="Antora 3.2.1">
     <link rel="stylesheet" href="../_/css/site.css">
   </head>
   <body class="article">
@@ -165,13 +165,13 @@
 <div class="ulist">
 <ul>
 <li>
-<p><a href="00-setup.html" class="page">Cluster setup</a> complete</p>
+<p><a href="00-setup.html" class="xref page">Cluster setup</a> complete</p>
 </li>
 <li>
 <p><code>oc</code> CLI authenticated as cluster-admin</p>
 </li>
 <li>
-<p>Context renamed to <code>crc</code> as described in <a href="00-setup.html" class="page">Cluster Setup</a></p>
+<p>Context renamed to <code>crc</code> as described in <a href="00-setup.html" class="xref page">Cluster Setup</a></p>
 </li>
 <li>
 <p>Workshop repository cloned locally</p>
@@ -221,8 +221,8 @@ route.route.openshift.io/myboot created</code></pre>
 <pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">deployment "myboot" successfully rolled out</code></pre>
 </div>
 </div>
-<div class="exampleblock">
-<div class="title">Example 1. Verify: two pods running</div>
+<details>
+<summary class="title">Verify: two pods running</summary>
 <div class="content">
 <div class="listingblock console-input">
 <div class="content">
@@ -237,7 +237,7 @@ myboot-6d9b7f5c4d-xyz34   1/1     Running   0          45s</code></pre>
 </div>
 </div>
 </div>
-</div>
+</details>
 <hr>
 </div>
 <div class="sect2">
@@ -274,8 +274,8 @@ The response rotates between the two pods. Run <code>curl</code> a few times to 
 </tr>
 </table>
 </div>
-<div class="exampleblock">
-<div class="title">Example 2. Verify: health endpoint responds</div>
+<details>
+<summary class="title">Verify: health endpoint responds</summary>
 <div class="content">
 <div class="listingblock console-input">
 <div class="content">
@@ -288,7 +288,7 @@ The response rotates between the two pods. Run <code>curl</code> a few times to 
 </div>
 </div>
 </div>
-</div>
+</details>
 <div class="imageblock">
 <div class="content">
 <img src="_images/01-deployments-baseline.png" alt="OpenShift console Deployments list showing myboot deployment with 2 of 2 pods running in cma-demo namespace">
@@ -343,7 +343,7 @@ The response rotates between the two pods. Run <code>curl</code> a few times to 
 <tbody>
 <tr>
 <td class="tableblock halign-left valign-top"><p class="tableblock">Replicas do not change under load</p></td>
-<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="02-cpu-trigger.html" class="page">Step 02 - CPU Trigger</a></p></td>
+<td class="tableblock halign-left valign-top"><p class="tableblock"><a href="02-cpu-trigger.html" class="xref page">Step 02 - CPU Trigger</a></p></td>
 </tr>
 </tbody>
 </table>
