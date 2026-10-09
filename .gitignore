@@ -6,7 +6,6 @@ myenv.sh
 node_modules/
 .cache/
 gh-pages/
-package-lock.json
 yarn.lock
 yarn-error.log
 .playwright-mcp/
