@@ -16,8 +16,6 @@ asciidoc:
   attributes:
     release-version: master
     page-pagination: true
-  extensions:
-    - ./lib/remote-include-processor.js
 
 ui:
   bundle:

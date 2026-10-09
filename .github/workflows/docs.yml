@@ -22,11 +22,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
       - name: Build site with Antora
         run: |
-          npm install
+          npm ci
           npx antora --stacktrace site.yml
+
+      - name: Check collapsible verification blocks rendered
+        run: |
+          fail=0
+          for f in documentation/modules/ROOT/pages/*.adoc; do
+            p=$(basename "$f" .adoc)
+            [ "$p" = "_attributes" ] && continue
+            src=$(grep -c '%collapsible' "$f" || true)
+            out=$(grep -c '<details' "gh-pages/cma-workshop/$p.html" || true)
+            echo "$p adoc=$src html=$out"
+            [ "$src" = "$out" ] || fail=1
+          done
+          exit $fail
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4

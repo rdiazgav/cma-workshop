@@ -15,8 +15,6 @@ content:
 asciidoc:
   attributes:
     title: Custom Metrics Autoscaler on OpenShift Local (Dev Mode)
-  extensions:
-    - ./lib/remote-include-processor.js
 
 ui:
   bundle:
